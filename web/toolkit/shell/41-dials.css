@@ -1,0 +1,25 @@
+/* radial dials and crosshair clusters: SVG figures that fill and centre in any tile; wide or tall tiles add a second figure and a side column */
+.dials{display:flex;gap:16px;align-items:stretch;justify-content:center}
+.dials .figure{display:block;flex:1 1 0;min-width:0;min-height:0;height:100%;overflow:visible}
+.dials .figure.extra,.dial-side{display:none}
+@container deco (min-aspect-ratio:5/4){.dial-side{display:flex}}
+@container deco (min-aspect-ratio:2/1){.dials .figure.extra{display:block}}
+@container deco (max-aspect-ratio:3/4){.dials{flex-direction:column}.dials .figure{height:auto;width:100%}}
+@container deco (max-aspect-ratio:1/2){.dials .figure.extra{display:block}}
+.dial-side{flex:0 0 clamp(152px,24%,220px);flex-direction:column;gap:10px;min-width:0;min-height:0;padding-right:4px}
+.dial-side.lead{order:-1}
+.side-readout{display:flex;justify-content:space-between;gap:12px;flex:none}
+.dial-side .dcol{flex:1 1 0;min-height:0;min-width:0;max-width:none}
+.figure .arc{fill:var(--tone);opacity:var(--a,1);cursor:pointer;transition:opacity .15s,fill .15s}
+.figure .arc.lit{opacity:1;fill:color-mix(in oklab,var(--tone) 55%,#fff)}
+.figure .arc.flash{animation:lcars-arc-flash .42s ease-out}
+@keyframes lcars-arc-flash{from{fill:#fff}}
+.tick-arc{fill:var(--tone)}
+.dial-core{fill:#000;stroke:var(--frame);stroke-width:1.5}
+.dial-value{fill:var(--tone);font-family:var(--label);font-weight:500;text-anchor:middle;letter-spacing:.04em}
+.dial-label{fill:var(--muted);font-family:var(--label);text-anchor:middle;letter-spacing:.1em}
+.cross-label{fill:#000;font-family:var(--label);font-weight:500;text-anchor:middle;pointer-events:none}
+.dial-dash{fill:none;stroke:var(--frame);stroke-width:1.5;opacity:.7}
+.dial-sweep{pointer-events:none}
+.dial-sweep path{fill:var(--text)}
+.dial-sweep .sweep-edge{opacity:.6}

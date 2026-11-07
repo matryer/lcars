@@ -60,3 +60,21 @@ func TestSubSections(t *testing.T) {
 		}
 	}
 }
+
+func TestSectionThemes(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "home/_section.json", `{"version":1,"theme":"tidal"}`)
+	write(t, root, "home/note.md", "# Note")
+	write(t, root, "work/_section.json", `{"version":1,"theme":"plaid"}`)
+	write(t, root, "work/note.md", "# Note")
+	tabs := map[string]content.Tab{}
+	for _, tab := range openStore(t, root).State().Tabs {
+		tabs[tab.ID] = tab
+	}
+	if tabs["home"].Theme != "tidal" {
+		t.Fatalf("home theme = %q", tabs["home"].Theme)
+	}
+	if tabs["work"].Theme != "" || len(tabs["work"].Diagnostics) != 1 || !strings.Contains(tabs["work"].Diagnostics[0], `unknown theme "plaid"`) {
+		t.Fatalf("work = %+v", tabs["work"])
+	}
+}

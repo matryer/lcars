@@ -8,7 +8,9 @@
   <meta name="lcars:accent" content="apricot">
   <style>
     ol { list-style: none; margin: 0; padding: 0; display: grid; gap: .25rem; }
-    li { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr); gap: .25rem 1rem; padding: .5rem 0 .5rem .75rem; border-left: 4px solid #3a3440; }
+    li { border-left: 4px solid #3a3440; }
+    li > button { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr); gap: .25rem 1rem; width: 100%; min-height: 44px; padding: .5rem .5rem .5rem .75rem; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+    li > button:hover { background: #1c1820; }
     li + li { margin-top: 0; }
     .time { font: 500 1.25rem/1.3 var(--lcars-label-font); color: var(--lcars-apricot); }
     .place { grid-column: 2; color: var(--lcars-muted); font-size: .875rem; }
@@ -19,11 +21,14 @@
     .now { border-left-color: var(--lcars-orange); }
     .next { border-left-color: var(--lcars-apricot); }
     .empty { color: var(--lcars-muted); margin: 0; }
+    .week { margin: .75rem 0 0; padding: 0 1.25rem 0 1rem; border-radius: 0 22px 22px 0; background: #2a2630; color: var(--lcars-text); font: 500 1rem/1 var(--lcars-label-font); text-transform: uppercase; letter-spacing: .04em; }
+    .week:hover { background: var(--lcars-apricot); color: var(--lcars-ink); }
   </style>
 </head>
 <body>
   <ol id="events" aria-label="Today's appointments"></ol>
   <p class="empty" id="empty" hidden>Nothing scheduled.</p>
+  <button class="week" id="week" type="button">Open Week →</button>
   <script>
     let schedule = [], clock = new Date().toISOString();
     const minutes = hhmm => { const [h, m] = String(hhmm).split(':').map(Number); return h * 60 + m; };
@@ -45,14 +50,27 @@
         else if (start <= now) { item.className = 'now'; tag = 'Now'; }
         else if (!nextMarked) { item.className = 'next'; tag = 'Next'; nextMarked = true; }
         if (tag) { const badge = document.createElement('span'); badge.className = 'tag'; badge.textContent = tag; title.append(badge); }
-        item.append(time, title);
         const detail = [event.place, event.allDay ? '' : `until ${event.end}`].filter(Boolean).join(' · ');
         const place = document.createElement('span'); place.className = 'place'; place.textContent = detail;
-        item.append(place);
+        // A stable id lets Back return focus here after the minute re-render.
+        const button = document.createElement('button'); button.type = 'button'; button.id = `agenda-${events.indexOf(event)}`;
+        button.append(time, title, place);
+        button.addEventListener('click', () => {
+          const at = hhmm => { const [h, m] = String(hhmm).split(':').map(Number); const d = new Date(clock); d.setHours(h, m, 0, 0); return d.toISOString(); };
+          const fields = event.allDay ? [{label: 'When', value: 'All day today'}] : [{label: 'Starts', time: at(event.start)}, {label: 'Ends', time: at(event.end)}];
+          if (event.place) fields.push({label: 'Where', value: event.place});
+          if (tag) fields.push({label: 'Status', value: tag === 'Now' ? 'Happening now' : 'Up next'});
+          const later = events.filter(other => !other.allDay && minutes(other.start) >= end && other !== event);
+          if (!event.allDay && later.length) fields.push({label: 'Then', value: `${later[0].start} ${later[0].title}`});
+          LCARS.openDetail({title: event.title, fields});
+        });
+        item.append(button);
         list.append(item);
       }
       document.getElementById('empty').hidden = events.length > 0;
     }
+    // The rest of the week lives on its own page.
+    document.getElementById('week').addEventListener('click', () => LCARS.navigate('week'));
     LCARS.onState(state => { clock = state.clock; render(); });
     LCARS.onData(({data, missing}) => {
       schedule = !missing && Array.isArray(data?.events) ? data.events : [];

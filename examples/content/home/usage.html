@@ -8,67 +8,93 @@
   <meta name="lcars:order" content="30">
   <meta name="lcars:accent" content="blue">
   <style>
-    .totals { display: flex; flex-wrap: wrap; gap: .5rem 2rem; margin-bottom: 1rem; }
-    .totals p { margin: 0; }
-    .total { font: 500 2rem/1.1 var(--lcars-label-font); }
-    .solar { color: var(--lcars-apricot); }
-    .grid { color: var(--lcars-lilac); }
-    .key { color: var(--lcars-muted); font-size: .875rem; }
-    .swatch { display: inline-block; width: .75rem; height: .75rem; margin-right: .375rem; vertical-align: -.05em; }
-    svg { width: 100%; height: auto; overflow: visible; }
+    .series { display: flex; flex-wrap: wrap; gap: .5rem 1rem; margin-bottom: .75rem; }
+    .series button { display: grid; justify-items: start; gap: .125rem; padding: .25rem 1rem .25rem .75rem; border: 0; border-left: 6px solid var(--tone); border-radius: 0 1.5rem 1.5rem 0; background: #1c1820; color: var(--lcars-text); font: inherit; text-align: left; }
+    .series button[aria-pressed=false] { opacity: .45; border-left-style: dashed; }
+    .series .total { font: 500 1.75rem/1.1 var(--lcars-label-font); color: var(--tone); }
+    .series .name { color: var(--lcars-muted); font-size: .875rem; }
+    svg { display: block; width: 100%; height: auto; overflow: visible; touch-action: manipulation; }
     svg text { fill: var(--lcars-muted); font: 12px var(--lcars-label-font); letter-spacing: .04em; }
     .bar-solar { fill: var(--lcars-apricot); } .bar-grid { fill: var(--lcars-lilac); }
-    details { margin-top: .75rem; }
-    summary { cursor: pointer; padding: .5rem 0; }
-    td, th { text-align: right; } td:first-child, th:first-child { text-align: left; }
+    .day { cursor: pointer; } .day .hit { fill: transparent; }
+    .dimmed rect:not(.hit) { opacity: .35; }
+    .days { display: flex; flex-wrap: wrap; gap: 4px; margin: .5rem 0 0; }
+    .days button { flex: 1 1 2.75rem; padding: 0 .25rem; border: 0; background: #2a2630; color: var(--lcars-text); font: 500 .9375rem/1 var(--lcars-label-font); text-transform: uppercase; letter-spacing: .04em; }
+    .days button:first-child { border-radius: 1.375rem 0 0 1.375rem; } .days button:last-child { border-radius: 0 1.375rem 1.375rem 0; }
+    .days button[aria-pressed=true] { background: var(--lcars-blue); color: var(--lcars-ink); }
+    .scan { --lcars-scan-color: var(--lcars-text); --lcars-scan-duration: 8s; }
+    .readout { margin: .75rem 0 0; min-height: 1.5em; color: var(--lcars-muted); }
+    .readout strong { color: var(--lcars-text); font-weight: 600; }
   </style>
 </head>
 <body>
-  <div class="totals">
-    <div><p class="total solar" id="solar-total">–</p><p class="key"><span class="swatch" style="background:var(--lcars-apricot)"></span>Solar</p></div>
-    <div><p class="total grid" id="grid-total">–</p><p class="key"><span class="swatch" style="background:var(--lcars-lilac)"></span>Grid</p></div>
+  <div class="series" role="group" aria-label="Series">
+    <button type="button" data-series="solar" aria-pressed="true" style="--tone:var(--lcars-apricot)"><span class="total" id="solar-total">–</span><span class="name">Solar</span></button>
+    <button type="button" data-series="grid" aria-pressed="true" style="--tone:var(--lcars-lilac)"><span class="total" id="grid-total">–</span><span class="name">Grid</span></button>
   </div>
-  <svg id="chart" role="img" aria-labelledby="chart-desc"><desc id="chart-desc">Daily household energy, solar stacked below grid import.</desc></svg>
-  <details><summary>Daily figures</summary>
-    <div class="lcars-scroll" role="region" aria-label="Daily energy table" tabindex="0"><table><thead><tr><th>Day</th><th>Solar kWh</th><th>Grid kWh</th><th>Total kWh</th></tr></thead><tbody id="rows"></tbody></table></div>
-  </details>
+  <div class="lcars-scan scan"><svg id="chart" role="img" aria-labelledby="chart-desc"><desc id="chart-desc">Daily household energy, solar stacked below grid import. Use the day buttons below for each day's figures.</desc></svg></div>
+  <div class="days" id="days" role="group" aria-label="Day"></div>
+  <p class="readout" id="readout" aria-live="polite">Choose a day for its figures.</p>
   <script>
     const ns = 'http://www.w3.org/2000/svg';
-    let days = [];
+    let days = [], selected = -1;
+    const shown = {solar: true, grid: true};
     const el = (name, attrs, text) => { const node = document.createElementNS(ns, name); for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v); if (text != null) node.textContent = text; return node; };
     const fmt = value => Number.isFinite(value) ? value.toFixed(1) : '–';
+    const total = d => (shown.solar ? d.solar : 0) + (shown.grid ? d.grid : 0);
+    function select(index) {
+      selected = selected === index ? -1 : index;
+      for (const [i, button] of [...document.querySelectorAll('#days button')].entries()) button.setAttribute('aria-pressed', String(i === selected));
+      const d = days[selected];
+      const readout = document.getElementById('readout');
+      if (!d) readout.textContent = 'Choose a day for its figures.';
+      else {
+        const share = Math.round(d.solar / (d.solar + d.grid) * 100);
+        readout.innerHTML = '<strong></strong> · solar <strong></strong> kWh · grid <strong></strong> kWh · <strong></strong>% from solar';
+        const parts = readout.querySelectorAll('strong');
+        parts[0].textContent = d.day; parts[1].textContent = fmt(d.solar); parts[2].textContent = fmt(d.grid); parts[3].textContent = share;
+      }
+      draw();
+    }
     function draw() {
       const svg = document.getElementById('chart');
-      const width = Math.max(240, svg.clientWidth || document.body.clientWidth), height = width < 420 ? 160 : 200;
-      const top = 8, bottom = 24, left = 28;
+      const width = Math.max(240, svg.clientWidth || document.body.clientWidth), height = width < 420 ? 150 : 190;
+      const top = 8, bottom = 22, left = 28;
       svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
       [...svg.querySelectorAll(':not(desc)')].forEach(node => node.remove());
+      svg.classList.toggle('dimmed', selected >= 0);
       if (!days.length) return;
-      const max = Math.ceil(Math.max(...days.map(d => d.solar + d.grid)) / 5) * 5 || 5;
+      const max = Math.ceil(Math.max(1, ...days.map(total)) / 5) * 5;
       const plot = height - top - bottom, slot = (width - left) / days.length, bar = Math.min(48, slot * .6);
       for (let v = 0; v <= max; v += max / (width < 420 ? 2 : 4)) {
         const y = top + plot - v / max * plot;
-        svg.append(el('line', {x1: left, x2: width, y1: y, y2: y, stroke: '#3a3440', 'stroke-width': 1}));
-        svg.append(el('text', {x: 0, y: y + 4}, Math.round(v)));
+        svg.append(el('line', {x1: left, x2: width, y1: y, y2: y, stroke: '#3a3440', 'stroke-width': 1}), el('text', {x: 0, y: y + 4}, Math.round(v)));
       }
       days.forEach((d, i) => {
         const x = left + i * slot + (slot - bar) / 2;
-        const solarH = d.solar / max * plot, gridH = d.grid / max * plot;
-        svg.append(el('rect', {x, width: bar, y: top + plot - solarH, height: solarH, class: 'bar-solar'}));
-        svg.append(el('rect', {x, width: bar, y: top + plot - solarH - gridH, height: gridH, class: 'bar-grid'}));
-        svg.append(el('text', {x: x + bar / 2, y: height - 6, 'text-anchor': 'middle'}, width < 360 ? d.day[0] : d.day));
+        const group = el('g', {class: 'day'});
+        const solarH = shown.solar ? d.solar / max * plot : 0, gridH = shown.grid ? d.grid / max * plot : 0;
+        const solar = el('rect', {x, width: bar, y: top + plot - solarH, height: solarH, class: 'bar-solar'});
+        const grid = el('rect', {x, width: bar, y: top + plot - solarH - gridH, height: gridH, class: 'bar-grid'});
+        if (i === selected) { solar.style.opacity = grid.style.opacity = 1; }
+        group.append(el('rect', {class: 'hit', x: left + i * slot, width: slot, y: top, height: plot}), solar, grid, el('text', {x: x + bar / 2, y: height - 4, 'text-anchor': 'middle'}, width < 360 ? d.day[0] : d.day));
+        group.addEventListener('click', () => select(i));
+        svg.append(group);
       });
     }
+    for (const button of document.querySelectorAll('.series button')) button.addEventListener('click', () => {
+      const key = button.dataset.series, other = key === 'solar' ? 'grid' : 'solar';
+      if (shown[key] && !shown[other]) return; // keep at least one series visible
+      shown[key] = !shown[key]; button.setAttribute('aria-pressed', String(shown[key])); draw();
+    });
     LCARS.onData(({data, missing}) => {
       days = !missing && Array.isArray(data?.days) ? data.days.filter(d => Number.isFinite(d.solar) && Number.isFinite(d.grid)) : [];
-      const sum = key => days.reduce((total, d) => total + d[key], 0);
+      const sum = key => days.reduce((t, d) => t + d[key], 0);
       document.getElementById('solar-total').textContent = days.length ? `${fmt(sum('solar'))} kWh` : 'Unavailable';
       document.getElementById('grid-total').textContent = days.length ? `${fmt(sum('grid'))} kWh` : 'Unavailable';
-      document.getElementById('rows').replaceChildren(...days.map(d => {
-        const tr = document.createElement('tr');
-        for (const value of [d.day, fmt(d.solar), fmt(d.grid), fmt(d.solar + d.grid)]) { const td = document.createElement('td'); td.textContent = value; tr.append(td); }
-        return tr;
-      }));
+      const box = document.getElementById('days');
+      if (box.childElementCount !== days.length) box.replaceChildren(...days.map((d, i) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = d.day; b.setAttribute('aria-pressed', 'false'); b.addEventListener('click', () => select(i)); return b; }));
+      if (selected >= days.length) selected = -1;
       draw();
     });
     new ResizeObserver(() => requestAnimationFrame(draw)).observe(document.body);

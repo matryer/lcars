@@ -195,7 +195,7 @@ func run(args []string) (err error) {
 		}
 	}()
 	common := []releaseFile{}
-	for _, name := range []string{"README.md", "web/fonts/OFL.txt"} {
+	for _, name := range []string{"README.md", "web/toolkit/fonts/OFL.txt"} {
 		b, e := os.ReadFile(name)
 		if e != nil {
 			return e

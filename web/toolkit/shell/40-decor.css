@@ -1,0 +1,52 @@
+/* host decoration: gap-filler tiles, keypads, readouts, meters, bars, consoles, gauges */
+.deco{--accent:var(--lilac);position:relative;isolation:isolate;min-width:0;align-self:stretch;min-height:150px;padding:0 0 12px 32px;display:flex;flex-direction:column;overflow:hidden}
+.deco::before{content:'';position:absolute;top:0;left:0;bottom:0;right:10px;border-left:var(--line) solid var(--frame);border-top:var(--line) solid var(--frame);border-top-left-radius:24px;z-index:-1}
+.deco::after{content:'';position:absolute;top:0;right:0;width:20px;height:var(--line);background:var(--frame);border-radius:0 4px 4px 0;z-index:-1}
+.deco-code{align-self:flex-start;margin:-5px 0 20px 4px;padding:0 8px;background:#000;font:500 16px/1.4 var(--label);letter-spacing:.08em;color:var(--frame)}
+.deco-body{position:relative;flex:1;min-height:0;overflow:hidden;contain:size;container:deco/size}
+.deco i,.deco b{font-style:normal}
+.keypad{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;align-content:start}
+.key{display:flex;align-items:flex-end;justify-content:flex-start;height:44px;padding:6px 14px;background:var(--tone);color:#000;font:500 15px/1 var(--label);letter-spacing:.03em;white-space:nowrap;overflow:hidden;border-radius:0 22px 22px 0;cursor:pointer;user-select:none;transition:filter .15s,transform .1s,opacity .15s}
+.key.num{justify-content:flex-end}
+.key.square{border-radius:0}
+.key.wide{grid-column:span 2}
+.key:active{transform:scale(.96)}
+.console{display:flex;gap:8px;height:100%}
+.dcol{display:flex;flex-direction:column;gap:8px;flex:1 1 0;min-width:max-content;max-width:230px}
+.dcol.words{flex-grow:1.6;max-width:none}
+.dkey,.wblock{display:flex;align-items:flex-end;flex:1 1 0;min-height:22px;max-height:72px;padding:6px 14px;background:var(--tone);color:#000;font:500 15px/1 var(--label);letter-spacing:.03em;white-space:nowrap;overflow:hidden;cursor:pointer;user-select:none;transition:filter .15s}
+.dkey{border-radius:0 999px 999px 0}
+.dkey.square,.wblock{border-radius:0}
+.wblock{max-height:110px}
+.gauge{position:relative;display:flex;flex:0 0 clamp(64px,20%,104px);min-width:0;border:10px solid var(--tone);border-top-width:16px;background:#000;overflow:hidden}
+/* ruled gauges need height for their 1–7 scale; short consoles keep only their key columns */
+@container deco (max-height:169px){.console .gauge{display:none}}
+.gauge-fill{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(var(--tone),transparent);opacity:.75;transition:height 1.4s cubic-bezier(.4,0,.2,1)}
+.scale{position:relative;display:flex;flex-direction:column;justify-content:space-between;flex:1;padding:6px 0}
+.tick{position:relative;display:flex;align-items:center;justify-content:center;flex:1 1 0;min-height:0}
+.tick::before,.tick::after{content:'';position:absolute;top:50%;height:3px;margin-top:-1.5px;width:14%;background:var(--tone)}
+.tick::before{left:0}
+.tick::after{right:0}
+.tick.major::before,.tick.major::after{width:32%}
+.tick b{font:500 clamp(11px,1.6vh,20px)/1 var(--label);color:var(--tone)}
+.dkey.lit,.wblock.lit,.key.lit,.tag.lit{opacity:1;filter:brightness(1.35) saturate(1.2);outline:2px solid var(--tone);outline-offset:2px}
+.readout{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px 20px;align-content:start}
+.readout .row{display:grid;grid-template-columns:22px minmax(0,1fr) 40px;gap:8px;align-items:center}
+.tag{display:block;height:14px;background:var(--tone);border-radius:0 7px 7px 0;cursor:pointer}
+.tag.short{width:60%}
+.number{font:500 22px/1 var(--label);color:var(--tone);text-align:right;letter-spacing:.04em}
+.meters{display:flex;gap:16px;height:100%}
+.meter{display:flex;flex-direction:column;gap:3px;flex:1 1 0;min-width:22px;max-width:44px}
+.meter i{display:block;flex:1 1 0;min-height:3px;max-height:20px;background:#26222c;border-radius:0 4px 4px 0;transition:background .4s}
+.meter i.on{background:var(--tone)}
+.meter b{margin-top:6px;font:500 12px/1 var(--label);color:var(--tone);text-align:center;letter-spacing:.04em}
+.bars{display:grid;gap:7px;align-content:start}
+.bar{display:block;height:16px;padding-left:8px;background:var(--tone);color:#000;font:500 11px/16px var(--label);letter-spacing:.06em;border-radius:0 8px 8px 0}
+.flash{animation:lcars-flash .42s ease-out}
+@keyframes lcars-flash{0%{filter:brightness(1.9) saturate(1.3)}100%{filter:none}}
+.deco .number,.deco .meter,.deco .bar,.deco .gauge{cursor:pointer}
+.deco .gauge{touch-action:none;cursor:ns-resize}
+.deco .gauge.held /* ruled gauges need height for their 1–7 scale; short consoles keep only their key columns */
+@container deco (max-height:169px){.console .gauge{display:none}}
+.gauge-fill{transition:none}
+.deco .bar{transition:width .3s cubic-bezier(.4,0,.2,1)}

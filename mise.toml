@@ -6,6 +6,10 @@ node = "24"
 description = "Build the LCARS binary"
 run = "go build -o lcars ./cmd/lcars"
 
+[tasks.fmt]
+description = "Format all Go and web source, examples and documentation"
+run = ["npm ci --ignore-scripts", "gofmt -w cmd internal skills tools web", "npm run fmt"]
+
 [tasks.test]
 description = "Run JavaScript tests, Go race tests and vet"
 run = ["npm ci --ignore-scripts", "npm test", "go test -race ./...", "go vet ./..."]

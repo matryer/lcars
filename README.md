@@ -81,6 +81,12 @@ npm test
 GitHub Actions runs the JavaScript tests and Go race tests/vet on pushes and pull
 requests, with Chrome available for the browser integration tests.
 
+Format all source with `mise run fmt`. It installs the locked formatter dependency,
+runs `gofmt` across Go source, and runs Prettier across JavaScript, HTML, CSS, JSON,
+YAML and Markdown, including examples and documentation. Prettier follows
+`.gitignore`, so dependencies and build output are excluded. To check Prettier
+formatting without changing files, run `npm run fmt:check` after `npm ci --ignore-scripts`.
+
 ## Publishing model
 
 Write hidden temporary files on the same filesystem, then atomically rename them. Stage resource files before replacing the document with changed bytes; the document is the bundle commit point. Live `data.json` publishes separately. Invalid changes retain accepted content and display a diagnostic. Unchanged-byte writes do not refresh timestamps. The UI exposes publication and producer observation times separately.
@@ -123,6 +129,7 @@ When sharing a tailnet service, discover the serving machine's full DNS hostname
 
 ```sh
 mise run build                         # build ./lcars
+mise run fmt                           # gofmt and Prettier across all source
 mise run test                          # JS tests, Go race tests and vet; browser tests if installed
 mise run bump                          # bump patch only (0.1.0 → 0.1.1)
 mise run bump --bump minor              # bump minor and reset patch

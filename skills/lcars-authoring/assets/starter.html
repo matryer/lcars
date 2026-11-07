@@ -22,6 +22,8 @@
   <script>
     // Write {"version":1,"data":{"value":420,"unit":"W"}} to
     // assets/THIS-PANEL-ID/data.json. LCARS delivers it; do not fetch it.
+    // Draw synchronously here: the panel may load offscreen, without
+    // animation frames, long before it is shown.
     LCARS.onData(({data, missing}) => {
       const available = !missing && Number.isFinite(data?.value);
       document.querySelector('#value').textContent = available
@@ -31,6 +33,8 @@
         ? ''
         : 'No reading is available. Publish data to this panel’s asset directory.';
     });
+    // Optional timers or animation: pause while hidden, resume and catch up when shown.
+    // LCARS.onState(({visible, motion}) => { /* start or stop work here */ });
   </script>
 </body>
 </html>

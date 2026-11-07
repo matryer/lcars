@@ -1,0 +1,13 @@
+/* Expand: a panel lifted in place into a large overlay over a dimmed backdrop */
+.expand-backdrop{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.84)}
+.panel.lifted{position:fixed;inset:0;z-index:50;margin:auto;width:min(90%,1480px,calc(100% - 56px));height:min(85%,calc(100% - 56px));display:flex;flex-direction:column;padding:0 16px 32px 32px;background:#000;animation:none}
+.panel.lifted::before{border-bottom:var(--line) solid var(--frame);border-bottom-left-radius:24px}
+.panel.lifted>.panel-heading{flex:none;align-self:flex-start}
+.panel.lifted>.panel-body{flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain;padding-right:12px}
+.panels .panel[data-size=full] .panel-expand{display:block}
+.panel.lifting{opacity:0!important}
+.panel.lift-in>*{animation:lcars-fade .24s ease-out both}
+.panel-placeholder{min-width:0}
+@media(max-width:759px){
+.panel.lifted{inset:8px;width:auto;height:auto;margin:0;padding:0 8px 24px 24px}
+}

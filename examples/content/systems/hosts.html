@@ -22,6 +22,7 @@
     .meter span:last-child { height: .5rem; background: #2a2630; border-radius: 0 .5rem .5rem 0; overflow: hidden; }
     .meter i { display: block; height: 100%; background: var(--lcars-blue); border-radius: inherit; }
     .high i { background: var(--lcars-orange); }
+    .meter .lcars-scan { --lcars-scan-color: var(--lcars-text); --lcars-scan-duration: 9s; }
     .state { font: 500 .9375rem/1 var(--lcars-label-font); text-transform: uppercase; letter-spacing: .04em; }
     .warning { color: var(--lcars-orange); }
     .lcars-scroll { border-bottom: 0; }
@@ -50,7 +51,7 @@
         {label: 'CPU', value: percent(host.cpu)}, {label: 'Memory', value: percent(host.memory)}, {label: 'Disk', value: percent(host.disk)}
       ];
       if (Number.isFinite(host.uptimeDays)) fields.push({label: 'Up since', time: new Date(Date.parse(clock) - host.uptimeDays * 86400000).toISOString()});
-      LCARS.openModal({title: host.name, body: host.summary || '', fields});
+      LCARS.openDetail({title: host.name, body: host.summary || '', fields});
     }
     function header() {
       document.getElementById('head').replaceChildren(...columns.map(column => {
@@ -78,13 +79,13 @@
           const td = document.createElement(column.key === 'name' ? 'th' : 'td');
           if (column.key === 'name') {
             td.scope = 'row'; td.className = 'host';
-            const button = document.createElement('button'); button.type = 'button'; button.textContent = host.name;
-            button.setAttribute('aria-haspopup', 'dialog'); button.addEventListener('click', () => details(host));
+            const button = document.createElement('button'); button.type = 'button'; button.textContent = host.name; button.id = `host-${host.name}`.replace(/[^\w-]/g, '-');
+            button.addEventListener('click', () => details(host));
             td.append(button);
           }
           else if (column.meter) {
             const value = host[column.key]; td.className = 'num';
-            td.innerHTML = '<span class="meter"><span></span><span><i></i></span></span>';
+            td.innerHTML = '<span class="meter"><span></span><span class="lcars-scan"><i></i></span></span>';
             td.querySelector('.meter span').textContent = Number.isFinite(value) ? `${value}%` : '–';
             td.querySelector('i').style.width = `${Number.isFinite(value) ? value : 0}%`;
             td.querySelector('.meter').classList.toggle('high', value >= 80);

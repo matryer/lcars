@@ -1,0 +1,9 @@
+/* light grids: 6 × 3 boxes of 20 × 5px that flicker like live data; per-box timing comes from custom properties set at creation */
+.lights{display:grid;grid-template-columns:repeat(6,20px);grid-auto-rows:5px;gap:3px 4px;flex:none;pointer-events:none}
+.lights i{display:block;background:var(--tone);opacity:var(--o,1)}
+.lights i.f{animation:lcars-flicker var(--d,2s) var(--ease,ease-in-out) var(--t,0s) infinite}
+@keyframes lcars-flicker{0%,100%{opacity:var(--o,1)}50%{opacity:var(--lo,.2)}}
+.rail-lights{display:flex;justify-content:flex-end;flex:none;padding:10px 12px 10px 0}
+.masthead-segments,.footer-segments{align-items:center}
+.deco-lights{position:absolute;top:12px;right:18px}
+.panel-lights{position:absolute;top:-6px;right:40px;padding:0 8px;background:#000;z-index:1}

@@ -16,15 +16,27 @@
     .signal i { width: 4px; background: #3a3440; border-radius: 0 2px 0 0; }
     .signal i:nth-child(1) { height: 25%; } .signal i:nth-child(2) { height: 50%; } .signal i:nth-child(3) { height: 75%; } .signal i:nth-child(4) { height: 100%; }
     .signal i.on { background: var(--lcars-lilac); }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 .5rem; }
+    .chips button { padding: 0 16px; border-radius: 0 22px 22px 0; background: #2a2630; color: var(--lcars-text); font: 500 .9375rem/1 var(--lcars-label-font); text-transform: uppercase; letter-spacing: .04em; }
+    .chips button[aria-pressed=true] { background: var(--lcars-lilac); color: var(--lcars-ink); }
+    #clients { --lcars-scan-color: var(--lcars-lilac); --lcars-scan-duration: 10s; }
+    .chips + .chips { margin-top: -.25rem; }
   </style>
 </head>
 <body>
   <p class="count" id="count">Unavailable</p>
-  <ul id="clients"></ul>
+  <div class="chips" role="group" aria-label="Sort"><button type="button" data-sort="bars" aria-pressed="true">By signal</button><button type="button" data-sort="name" aria-pressed="false">By name</button></div>
+  <div class="chips" role="group" aria-label="Band"><button type="button" data-band="" aria-pressed="true">All</button><button type="button" data-band="5 GHz" aria-pressed="false">5 GHz</button><button type="button" data-band="2.4 GHz" aria-pressed="false">2.4 GHz</button></div>
+  <ul id="clients" class="lcars-scan"></ul>
   <script>
-    LCARS.onData(({data, missing}) => {
-      const clients = !missing && Array.isArray(data?.clients) ? data.clients : [];
-      document.getElementById('count').textContent = clients.length ? `${clients.length} connected` : 'Unavailable';
+    let all = [], sort = 'bars', band = '';
+    const choose = (group, value) => { for (const b of document.querySelectorAll(`[data-${group}]`)) b.setAttribute('aria-pressed', String(b.dataset[group] === value)); };
+    for (const b of document.querySelectorAll('[data-sort]')) b.addEventListener('click', () => { sort = b.dataset.sort; choose('sort', sort); render(); });
+    for (const b of document.querySelectorAll('[data-band]')) b.addEventListener('click', () => { band = b.dataset.band; choose('band', band); render(); });
+    LCARS.onData(({data, missing}) => { all = !missing && Array.isArray(data?.clients) ? data.clients : []; render(); });
+    function render() {
+      const clients = all.filter(client => !band || client.band === band).sort((a, b) => sort === 'name' ? a.name.localeCompare(b.name) : b.bars - a.bars || a.name.localeCompare(b.name));
+      document.getElementById('count').textContent = all.length ? (band ? `${clients.length} of ${all.length} on ${band}` : `${all.length} connected`) : 'Unavailable';
       document.getElementById('clients').replaceChildren(...clients.map(client => {
         const li = document.createElement('li');
         const name = document.createElement('span'); name.textContent = client.name;
@@ -34,7 +46,7 @@
         li.append(name, bars, meta);
         return li;
       }));
-    });
+    }
   </script>
 </body>
 </html>

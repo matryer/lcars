@@ -1,0 +1,18 @@
+/* panel grid, container breakpoints, mosaic, parked sections, entrance animation */
+.panels{--mosaic-gap:32px;--mosaic-row:8px;display:grid;grid-template-columns:minmax(0,1fr);gap:var(--mosaic-gap) 24px;align-items:start}
+@container(min-width:720px){.panels{grid-template-columns:repeat(2,minmax(0,1fr))}.panel[data-size=wide]{grid-column:span 2}.panel[data-size=full]{grid-column:1/-1}}
+@container(min-width:960px){.panels{grid-template-columns:repeat(3,minmax(0,1fr))}}
+/* Mosaic: fine rows; the shell places every panel and tile explicitly (45-layout.js). */
+.panels.mosaic{grid-auto-rows:var(--mosaic-row);row-gap:0;margin-bottom:calc(-1 * var(--mosaic-gap))}
+.panels.mosaic>.panel,.panels.mosaic>.panel-placeholder{align-self:stretch;margin-bottom:var(--mosaic-gap)}
+.panels.mosaic>.deco{align-self:start;min-height:0}
+/* Parked sections keep their real width and running frames but are invisible and take no space. */
+.panels.parked{position:absolute;left:0;right:0;top:0;height:0;margin:0;overflow:hidden;visibility:hidden;pointer-events:none}
+.panel.enter,.panels>.deco.enter{animation:lcars-rise .5s cubic-bezier(.2,.7,.2,1) both}
+.subnav a.enter{animation:lcars-slide .4s cubic-bezier(.2,.7,.2,1) both}
+/* A panel that displays before its placeholder shows takes its height without animating. */
+.frame-slot.instant{transition:none}
+@keyframes lcars-rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@media(max-width:759px){
+.panels{--mosaic-gap:28px}
+}

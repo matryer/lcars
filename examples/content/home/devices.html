@@ -12,14 +12,27 @@
     li + li { margin-top: 0; }
     .status { color: var(--lcars-muted); }
     .warning { color: var(--lcars-orange); }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 .5rem; }
+    .chips button { padding: 0 16px; border-radius: 0 22px 22px 0; background: #2a2630; color: var(--lcars-text); font: 500 .9375rem/1 var(--lcars-label-font); text-transform: uppercase; letter-spacing: .04em; }
+    .chips button[aria-pressed=true] { background: var(--lcars-lilac); color: var(--lcars-ink); }
+    .empty { color: var(--lcars-muted); padding: .5rem 0; }
   </style>
 </head>
 <body>
+  <div class="chips" role="group" aria-label="Show"><button type="button" data-filter="all" aria-pressed="true">All</button><button type="button" data-filter="attention" aria-pressed="false">Needs attention</button><button type="button" data-filter="active" aria-pressed="false">Active</button></div>
   <ul id="devices"></ul>
   <script>
-    LCARS.onData(({data, missing}) => {
-      const devices = !missing && Array.isArray(data?.devices) ? data.devices : [];
-      document.getElementById('devices').replaceChildren(...devices.map(device => {
+    let devices = [], filter = 'all';
+    const matches = device => filter === 'all' || (filter === 'attention' ? device.state !== 'Normal' : /running|on\b|open/i.test(device.status));
+    for (const chip of document.querySelectorAll('.chips button')) chip.addEventListener('click', () => {
+      filter = chip.dataset.filter;
+      for (const other of document.querySelectorAll('.chips button')) other.setAttribute('aria-pressed', String(other === chip));
+      render();
+    });
+    LCARS.onData(({data, missing}) => { devices = !missing && Array.isArray(data?.devices) ? data.devices : []; render(); });
+    function render() {
+      const shown = devices.filter(matches);
+      document.getElementById('devices').replaceChildren(...shown.map(device => {
         const li = document.createElement('li');
         const name = document.createElement('span'); name.textContent = device.name;
         const status = document.createElement('span'); status.className = 'status' + (device.state === 'Warning' ? ' warning' : '');
@@ -28,7 +41,8 @@
         return li;
       }));
       if (!devices.length) document.getElementById('devices').textContent = 'Unavailable';
-    });
+      else if (!shown.length) { const li = document.createElement('li'); li.className = 'empty'; li.textContent = 'None'; document.getElementById('devices').append(li); }
+    }
   </script>
 </body>
 </html>

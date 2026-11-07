@@ -1,0 +1,8 @@
+/* section morph: ghost LCARS frames in a fixed overlay; new frames wait hidden, then content fades in */
+.morph-layer{position:fixed;inset:0;z-index:30;pointer-events:none;overflow:hidden}
+.morph-layer.over-expand{z-index:60}
+.morph-ghost{position:absolute;left:0;top:0;color:var(--lilac);will-change:left,top,width,height}
+.morph-ghost::before{content:'';position:absolute;top:0;left:0;bottom:0;right:12px;border-left:12px solid currentColor;border-top:12px solid currentColor;border-top-left-radius:32px}
+.morph-ghost::after{content:'';position:absolute;top:0;right:0;width:24px;height:12px;background:currentColor;border-radius:0 6px 6px 0}
+.panels.morphing>*{opacity:0!important}
+.panels.morph-in>.panel>*,.panels.morph-in>.deco>*{animation:lcars-fade .24s ease-out both}

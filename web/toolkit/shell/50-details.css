@@ -1,0 +1,21 @@
+/* in-panel detail breadcrumb and Back control on the panel frame, panel time details row */
+.rail nav a:active,.subnav a:active{filter:brightness(1.25);transform:translateX(2px)}
+.panel-back{position:relative;display:inline-flex;align-items:center;gap:6px;vertical-align:10px;min-height:0;height:20px;margin:0 12px 0 0;padding:0 12px 0 10px;border:0;border-radius:10px 0 0 10px;background:var(--frame);color:#000;font:500 13px/20px var(--label);text-transform:uppercase;letter-spacing:.06em;transition:filter .15s,transform .1s}
+/* A 44px touch target around the 24px pill. */
+.panel-back::before{content:'';position:absolute;inset:-12px -6px}
+.panel-back:hover{filter:brightness(1.15)}
+.panel-back:active{transform:translateX(-2px)}
+.panel-crumb{font:500 26px/1.25 var(--label);text-transform:uppercase;letter-spacing:.02em;color:var(--text);overflow-wrap:anywhere}
+.crumb-separator{margin:0 .3em;color:var(--accent)}
+/* The breadcrumb wraps before it reaches the Expand control on the top bar. */
+.panel.detail-open .panel-heading{max-width:calc(100% - 136px)}
+.time-details{margin:4px 0 8px;padding:8px 0 0 12px;border-left:4px solid var(--accent)}
+.time-details dl{display:grid;grid-template-columns:minmax(0,max-content) minmax(0,1fr);gap:4px 16px;margin:0 0 8px}
+.time-details dt{font:500 15px/1.4 var(--label);text-transform:uppercase;letter-spacing:.04em;color:var(--accent)}
+.time-details dd{margin:0;color:var(--text)}
+.time-details p{margin:0;max-width:64ch}
+@media(max-width:759px){
+.panel-crumb{font-size:22px}
+.time-details dl{grid-template-columns:minmax(0,1fr);gap:0}
+.time-details dd{margin-bottom:6px}
+}

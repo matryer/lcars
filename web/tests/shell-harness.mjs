@@ -1,10 +1,19 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { JSDOM, VirtualConsole } from 'jsdom';
 import FakeTimers from '@sinonjs/fake-timers';
 
 const html = readFileSync(new URL('../shell.html', import.meta.url), 'utf8');
-const script = readFileSync(new URL('../shell.js', import.meta.url), 'utf8');
+// Build the shell exactly as web.ShellScript does: shell/*.js in filename order
+// inside one strict-mode wrapper, so the tests run what the server sends.
+const shellDir = new URL('../toolkit/shell/', import.meta.url);
+const script = '/* LCARS shell, bridge and capture contract v1. Built from web/toolkit/shell/*.js in filename order. */\n'
+  + "(() => {\n'use strict';\n"
+  + readdirSync(shellDir).filter(name => name.endsWith('.js')).sort().map(name => {
+    const part = readFileSync(new URL(name, shellDir), 'utf8');
+    return '// --- shell/' + name + ' ---\n' + part + (part.endsWith('\n') ? '' : '\n');
+  }).join('')
+  + '\n})();\n';
 export const NOW = Date.parse('2026-11-07T12:00:00Z');
 export const ago = ms => new Date(NOW - ms).toISOString();
 export const panel = (overrides = {}) => ({

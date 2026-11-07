@@ -228,18 +228,105 @@ test('navigation opens a first subsection, encodes paths, and handles browser hi
   assert.equal(s.$('#navigation [aria-current]').dataset.tab, 'work');
   assert.equal(s.$('#subnav [aria-current]').dataset.tab, 'work/next steps');
   assert.equal(s.$('#subnav [data-tab="work/next steps"]').getAttribute('href'), '/s/work/next%20steps');
-  assert.equal(s.$('.panel').dataset.panelId, 'next');
-  assert.equal(previous.isConnected, false);
+  assert.equal(s.$('#panels .panel').dataset.panelId, 'next');
+  assert.equal(s.$('#panels').dataset.section, 'work/next steps');
+  // The old section stays in the page, parked: connected, inert and hidden from assistive technology.
+  assert.equal(previous.isConnected, true);
+  const parked = previous.closest('.panels');
+  assert.notEqual(parked.id, 'panels');
+  assert.equal(parked.classList.contains('parked'), true);
+  assert.equal(parked.hasAttribute('inert'), true);
+  assert.equal(parked.getAttribute('aria-hidden'), 'true');
+  assert.equal(s.all('[id="panels"]').length, 1);
   assert.equal(s.window.document.title, 'Next steps · Work · LCARS');
   s.click(s.$('#subnav [data-tab="work/later"]'));
   assert.equal(s.window.location.pathname, '/s/work/later');
-  assert.equal(s.$('.panel').dataset.panelId, 'later');
+  assert.equal(s.$('#panels .panel').dataset.panelId, 'later');
   s.window.history.replaceState(null, '', '/s/overview');
   s.window.dispatchEvent(new s.window.PopStateEvent('popstate'));
   assert.equal(s.$('#navigation [aria-current]').dataset.tab, 'overview');
   assert.equal(s.$('#subnav').hidden, true);
-  assert.equal(s.$('.panel').dataset.panelId, 'overview/status');
+  assert.equal(s.$('#panels .panel').dataset.panelId, 'overview/status');
+  assert.equal(s.$('#panels iframe'), previous, 'returning shows the same frame');
+  assert.equal(parked.id, 'panels');
   assert.equal(s.requests.length, 1, 'navigation uses the already fetched state');
+});
+
+// Settle the current section, then let the idle preloader run once.
+async function settleAndIdle(s) {
+  for (const frame of s.all('#panels ' + candidate)) s.acknowledge(frame);
+  await s.clock.tickAsync(200);
+}
+const twoSections = () => state([panel(), panel({ id: 'work/plan', tab: 'work', title: 'Plan', url: '/component/plan', bundleHash: 'bundle-plan' })],
+  { tabs: [{ id: 'overview', title: 'Overview' }, { id: 'work', title: 'Work' }] });
+
+test('parked frames are told they are not visible, and navigation updates every frame', async t => {
+  const s = await shell(t, { initial: twoSections() });
+  const current = s.$(candidate), currentMessages = [];
+  current.contentWindow.postMessage = message => currentMessages.push(message);
+  assert.equal(s.all('iframe').length, 1, 'nothing preloads before the current section settles');
+  await settleAndIdle(s);
+  const preloaded = s.$('.panels.parked iframe');
+  assert.ok(preloaded, 'the other section preloads once idle');
+  assert.equal(preloaded.closest('.panels').dataset.section, 'work');
+  const messages = [];
+  preloaded.contentWindow.postMessage = message => messages.push(message);
+  s.message(preloaded, { type: 'hello' });
+  assert.equal(messages[0].type, 'init');
+  assert.equal(messages[0].state.visible, false, 'a parked frame initialises as not visible');
+  s.click(s.$('#navigation [data-tab="work"]'));
+  assert.equal(messages.at(-1).type, 'state');
+  assert.equal(messages.at(-1).state.visible, true, 'the opened section becomes visible');
+  assert.equal(currentMessages.at(-1).type, 'state');
+  assert.equal(currentMessages.at(-1).state.visible, false, 'the section left behind is parked');
+});
+
+test('navigation reuses a preloaded section without creating new frames', async t => {
+  const s = await shell(t, { initial: twoSections() });
+  const overview = s.$(candidate);
+  await settleAndIdle(s);
+  const preloaded = s.$('.panels.parked iframe');
+  s.acknowledge(preloaded);
+  assert.equal(preloaded.classList.contains('frame-candidate'), false, 'a parked frame is promoted while parked');
+  const count = s.all('iframe').length;
+  s.click(s.$('#navigation [data-tab="work"]'));
+  assert.equal(s.$('#panels').dataset.section, 'work');
+  assert.equal(s.$('#panels ' + displayed), preloaded, 'the preloaded frame is shown as it is');
+  assert.equal(s.all('iframe').length, count, 'no new frames were created');
+  assert.equal(overview.isConnected, true);
+  assert.equal(s.$('#panels .panel h2').textContent, 'Plan');
+});
+
+test('the pool preloads within its budget and evicts least recently visited sections', async t => {
+  const ids = ['a', 'b', 'c', 'd', 'e'];
+  const many = id => Array.from({ length: 20 }, (_, n) => panel({ id: `${id}/${n}`, tab: id, title: `${id} ${n}`, url: `/component/${id}-${n}`, bundleHash: `${id}-${n}` }));
+  const s = await shell(t, { path: '/s/a', initial: state(ids.flatMap(many), { tabs: ids.map(id => ({ id, title: id.toUpperCase() })) }) });
+  const sections = () => s.all('.panels[data-section]').map(element => element.dataset.section).sort().join();
+  const first = s.$('#panels iframe');
+  // One section at a time, each only after the previous one has settled.
+  await settleAndIdle(s);
+  assert.equal(sections(), 'a,b');
+  await s.clock.tickAsync(1_000);
+  assert.equal(sections(), 'a,b', 'the next preload waits for the last one to settle');
+  for (const frame of s.all('.panels[data-section="b"] iframe')) s.acknowledge(frame);
+  await s.clock.tickAsync(200);
+  assert.equal(sections(), 'a,b,c');
+  for (const frame of s.all('.panels[data-section="c"] iframe')) s.acknowledge(frame);
+  await s.clock.tickAsync(1_000);
+  assert.equal(sections(), 'a,b,c', 'a third parked section would exceed 48 live panels');
+  const evicted = s.$('.panels[data-section="c"] iframe');
+  s.click(s.$('#navigation [data-tab="d"]'));
+  // a (visited) and b stay; c, the newest never-visited section, is evicted to fit a.
+  assert.equal(sections(), 'a,b,d');
+  assert.equal(evicted.isConnected, false, 'evicted frames are disposed');
+  assert.equal(first.isConnected, true, 'the visited section is kept');
+  assert.ok(s.all('.panels.parked iframe').length <= 48);
+  for (const frame of s.all('#panels ' + candidate)) s.acknowledge(frame);
+  await s.clock.tickAsync(1_000);
+  assert.equal(sections(), 'a,b,d', 'no preload fits the budget');
+  s.click(s.$('#navigation [data-tab="a"]'));
+  assert.equal(s.$('#panels iframe'), first, 'returning to a kept section reuses its frames');
+  assert.equal(s.all('.panels.parked iframe').length, 40);
 });
 
 test('a direct nested URL selects its panel and a removed section has a recovery link', async t => {

@@ -17,9 +17,10 @@
     .today-label { font-size: .875rem; }
     ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .375rem; }
     li + li { margin-top: 0; }
-    .event { padding: .25rem .5rem; border-left: 3px solid var(--lcars-blue); font-size: .9375rem; line-height: 1.35; }
+    .event > button { display: block; width: 100%; min-height: 44px; padding: .25rem .5rem; border: 0; border-left: 3px solid var(--lcars-blue); background: none; color: var(--lcars-text); font: inherit; font-size: .9375rem; line-height: 1.35; text-align: left; cursor: pointer; }
+    .event > button:hover { background: #22202c; }
     .event .time { display: block; font: 500 .9375rem/1.3 var(--lcars-label-font); color: var(--lcars-blue); letter-spacing: .03em; }
-    .all-day { background: #26233a; border-left-style: dashed; }
+    .all-day > button { background: #26233a; border-left-style: dashed; }
     .all-day .time { color: var(--lcars-muted); }
     .none { color: var(--lcars-muted); font-size: .875rem; padding-left: .5rem; }
     @media (min-width: 760px) {
@@ -52,8 +53,21 @@
         const items = events.filter(event => event.day === index).sort((a, b) => (b.allDay ? 1 : 0) - (a.allDay ? 1 : 0) || String(a.start).localeCompare(String(b.start)));
         for (const event of items) {
           const li = document.createElement('li'); li.className = 'event' + (event.allDay ? ' all-day' : '');
+          // A stable id lets Back return focus here even after a re-render.
+          const button = document.createElement('button'); button.type = 'button'; button.id = `event-${index}-${items.indexOf(event)}`;
           const time = document.createElement('span'); time.className = 'time'; time.textContent = event.allDay ? 'All day' : `${event.start}–${event.end}`;
-          li.append(time, event.title);
+          button.append(time, event.title);
+          button.addEventListener('click', () => {
+            const at = hhmm => { const [h, m] = String(hhmm).split(':').map(Number); const d = new Date(date); d.setHours(h, m, 0, 0); return d.toISOString(); };
+            const day = date.toLocaleDateString(undefined, {weekday: 'long', day: 'numeric', month: 'long'});
+            const others = items.filter(other => other !== event).map(other => other.allDay ? `${other.title} (all day)` : `${other.start} ${other.title}`);
+            const fields = event.allDay ? [{label: 'When', value: `All day, ${day}`}] : [{label: 'Day', value: day}, {label: 'Starts', time: at(event.start)}, {label: 'Ends', time: at(event.end)}];
+            if (!event.allDay) { const length = (Date.parse(at(event.end)) - Date.parse(at(event.start))) / 60000; if (length > 0) fields.push({label: 'Length', value: length < 60 ? `${length} min` : `${Math.floor(length / 60)} h${length % 60 ? ` ${length % 60} min` : ''}`}); }
+            if (event.place) fields.push({label: 'Where', value: event.place});
+            if (others.length) fields.push({label: 'Same day', value: others.join(' · ')});
+            LCARS.openDetail({title: event.title, fields});
+          });
+          li.append(button);
           list.append(li);
         }
         day.append(heading, list);

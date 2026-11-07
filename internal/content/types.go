@@ -30,8 +30,14 @@ type Tab struct {
 	Title       string   `json:"title"`
 	Order       int      `json:"order"`
 	Accent      string   `json:"accent"`
+	Theme       string   `json:"theme,omitempty"`
 	Diagnostics []string `json:"diagnostics"`
 }
+
+// Themes are the shell's page palettes. A section without one gets a stable
+// theme chosen from a hash of its ID.
+var Themes = map[string]bool{"classic": true, "pastel": true, "nebula": true, "tidal": true, "sand": true, "meridian": true}
+
 type Envelope struct {
 	Version           int             `json:"version"`
 	UpdatedAt         string          `json:"updatedAt,omitempty"`
