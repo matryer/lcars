@@ -190,7 +190,9 @@ Provide an optional convenience command: `lcars put home/climate --data ./conten
 mkdir -p content/overview
 printf '%s\n' '# Briefing' '' 'Two emails need a reply.' > content/overview/.briefing.md.tmp
 mv content/overview/.briefing.md.tmp content/overview/briefing.md
-``` No custom write API in v1; remote agents use their existing SSH/filesystem access.
+```
+
+No custom write API in v1; remote agents use their existing SSH/filesystem access.
 
 One writer owns each full panel identity and its asset subdirectory; `put` does not merge edits. Different agents use different identities. Same-path atomic replacements are last-writer-wins. Shared ownership requires external coordination. Asset directories do not create panels; copying an SVG there alone does not publish it. Reference it from Markdown or JSON to supply its title and alternative text.
 
