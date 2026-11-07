@@ -77,6 +77,10 @@ Screenshot capture needs Chrome or Chromium. The server itself needs neither a b
 
 For private hosting, keep LCARS behind an authenticated proxy. See the [reference](docs/reference.md) for deployment, scheduled scripts, capture options, publishing behavior, and releases. [Screenshot capture instructions](examples/screenshots/README.md) cover the images above.
 
+## License
+
+LCARS is licensed under the [MIT License](LICENSE). Antonio is included under the [SIL Open Font License](web/toolkit/fonts/OFL.txt).
+
 ---
 
-Inspired by the LCARS designs of Michael and Denise Okuda and the production teams of _Star Trek: The Next Generation_. An independent implementation. Antonio is included under the [SIL Open Font License](web/toolkit/fonts/OFL.txt).
+Inspired by the LCARS designs of Michael and Denise Okuda and the production teams of _Star Trek: The Next Generation_. An independent implementation.
