@@ -170,12 +170,15 @@ if lock.exists():
 lock.write_text('yes')
 time.sleep(1.2)
 lock.unlink()
-print('{"version":1,"data":"new"}')
+print('{"version":1,"data":"new"}', end='\r\n')
 `
 	if err := os.WriteFile(job.Path, []byte(source), 0600); err != nil {
 		t.Fatal(err)
 	}
-	wait(func() bool { b, _ := os.ReadFile(path); return string(b) == "{\"version\":1,\"data\":\"new\"}\n" })
+	wait(func() bool {
+		b, _ := os.ReadFile(path)
+		return strings.TrimSpace(string(b)) == `{"version":1,"data":"new"}`
+	})
 	if _, err := os.Stat(filepath.Join(filepath.Dir(job.Path), "overlap")); !os.IsNotExist(err) {
 		t.Fatal("overlapping jobs")
 	}

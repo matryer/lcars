@@ -67,6 +67,12 @@ jobs:
       - name: Enable Chrome sandbox namespaces
         if: runner.os == 'Linux'
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      - name: Select Chrome for release browser tests
+        if: runner.os == 'Linux'
+        run: |
+          chrome_path="$(command -v google-chrome)"
+          "$chrome_path" --version
+          sudo ln -sf "$chrome_path" /usr/local/bin/chromium
       - name: Install Linux webview development libraries
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev
