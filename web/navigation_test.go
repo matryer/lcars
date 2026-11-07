@@ -64,7 +64,7 @@ func TestSubSectionNavigation(t *testing.T) {
 	if _, err = chromedp.Run(ctx, chromedp.Evaluate[bool](`(window.marker=1,document.querySelector('#subnav a[data-tab="systems/network"]').click(),true)`)); err != nil {
 		t.Fatal(err)
 	}
-	check("sub-tab opens in place", `window.marker===1 && location.pathname==='/s/systems/network' && `+heading+`==='Latency' && document.querySelector('#subnav a[aria-current]').dataset.tab==='systems/network' && document.querySelector('#navigation a[aria-current]').dataset.tab==='systems' && document.title==='Network · Systems · LCARS'`)
+	check("sub-tab opens in place", `window.marker===1 && location.pathname==='/s/systems/network' && `+heading+`==='Latency' && document.querySelector('#subnav a[aria-current]').dataset.tab==='systems/network' && document.querySelector('#navigation a[aria-current]').dataset.tab==='systems' && document.title==='Systems › Network - matryer/lcars'`)
 	if _, err = chromedp.Run(ctx, chromedp.Evaluate[bool](`(document.querySelector('#navigation a[data-tab="projects"]').click(),true)`)); err != nil {
 		t.Fatal(err)
 	}
