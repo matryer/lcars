@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "data": {
+    "hosts": [
+      {
+        "name": "atlas",
+        "role": "Workstation",
+        "cpu": 23,
+        "memory": 61,
+        "disk": 48,
+        "uptimeDays": 6,
+        "state": "Normal",
+        "summary": "Daily workstation. Also runs the reverse proxy and metrics."
+      },
+      {
+        "name": "vault",
+        "role": "Storage",
+        "cpu": 8,
+        "memory": 40,
+        "disk": 86,
+        "uptimeDays": 41,
+        "state": "Warning",
+        "note": "Disk",
+        "summary": "Storage host for backups, photos and the git mirror. Disk use has grown about 2% a week since the photo import; the replacement disk arrives Thursday."
+      },
+      {
+        "name": "lumen",
+        "role": "Media server",
+        "cpu": 37,
+        "memory": 58,
+        "disk": 63,
+        "uptimeDays": 12,
+        "state": "Normal",
+        "summary": "Media library and transcoding."
+      },
+      {
+        "name": "pi-shed",
+        "role": "Sensors",
+        "cpu": 4,
+        "memory": 22,
+        "disk": 31,
+        "uptimeDays": 88,
+        "state": "Normal",
+        "summary": "Raspberry Pi in the shed: DNS, VPN and home automation sensors."
+      }
+    ]
+  }
+}

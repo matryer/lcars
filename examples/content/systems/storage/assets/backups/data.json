@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "data": {
+    "jobs": [
+      {
+        "name": "vault → offsite",
+        "state": "Critical",
+        "detail": "Failed at 02:14: remote quota exceeded.",
+        "lastSuccessMinutesAgo": 2950
+      },
+      {
+        "name": "Phone photos → vault",
+        "state": "Warning",
+        "detail": "Behind while photo sync retries.",
+        "lastSuccessMinutesAgo": 2890
+      },
+      {
+        "name": "atlas → vault",
+        "state": "Normal",
+        "detail": "Completed 03:00 · 4.2 GB changed",
+        "lastSuccessMinutesAgo": 420
+      },
+      {
+        "name": "Git mirror → vault",
+        "state": "Normal",
+        "detail": "Completed 03:30 · 18 repositories",
+        "lastSuccessMinutesAgo": 390
+      }
+    ]
+  }
+}

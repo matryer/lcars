@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "data": {
+    "days": [
+      {"day": "Mon", "solar": 9.8, "grid": 4.1},
+      {"day": "Tue", "solar": 11.2, "grid": 3.6},
+      {"day": "Wed", "solar": 6.4, "grid": 6.9},
+      {"day": "Thu", "solar": 12.5, "grid": 3.2},
+      {"day": "Fri", "solar": 10.1, "grid": 5.0},
+      {"day": "Sat", "solar": 13.0, "grid": 6.2},
+      {"day": "Sun", "solar": 8.7, "grid": 5.5}
+    ]
+  }
+}

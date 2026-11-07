@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>CPU · last 24 hours</title>
+  <meta name="lcars:size" content="wide">
+  <meta name="lcars:order" content="20">
+  <meta name="lcars:accent" content="blue">
+  <style>
+    .legend { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; margin: 0 0 .75rem; padding: 0; list-style: none; }
+    .legend li + li { margin-top: 0; }
+    .legend li { display: flex; align-items: center; gap: .5rem; }
+    .legend svg { width: 2rem; height: .75rem; }
+    #chart { width: 100%; height: auto; overflow: visible; }
+    text { fill: var(--lcars-muted); font: 12px var(--lcars-label-font); letter-spacing: .04em; }
+    .axis { stroke: #3a3440; }
+    .s0 { stroke: var(--lcars-blue); } .s1 { stroke: var(--lcars-apricot); } .s2 { stroke: var(--lcars-lilac); }
+    .line { fill: none; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+    details { margin-top: .75rem; }
+    summary { cursor: pointer; padding: .5rem 0; }
+  </style>
+</head>
+<body>
+  <ul class="legend" id="legend"></ul>
+  <svg id="chart" role="img" aria-labelledby="chart-desc"><desc id="chart-desc">CPU percentage per host over the last 24 hours.</desc></svg>
+  <details><summary>Peaks and averages</summary><div class="lcars-scroll" role="region" aria-label="CPU summary table" tabindex="0"><table><thead><tr><th>Host</th><th>Average</th><th>Peak</th></tr></thead><tbody id="rows"></tbody></table></div></details>
+  <script>
+    const ns = 'http://www.w3.org/2000/svg', dashes = ['', '8 5', '2 5'];
+    let hosts = [];
+    const el = (name, attrs, text) => { const node = document.createElementNS(ns, name); for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v); if (text != null) node.textContent = text; return node; };
+    function draw() {
+      const svg = document.getElementById('chart');
+      [...svg.querySelectorAll(':not(desc)')].forEach(node => node.remove());
+      const width = Math.max(240, svg.clientWidth || document.body.clientWidth), height = width < 420 ? 150 : 190;
+      const left = 32, top = 8, bottom = 24, plot = height - top - bottom;
+      svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+      for (const v of width < 420 ? [0, 50, 100] : [0, 25, 50, 75, 100]) {
+        const y = top + plot - v / 100 * plot;
+        svg.append(el('line', {class: 'axis', x1: left, x2: width, y1: y, y2: y}), el('text', {x: 0, y: y + 4}, `${v}%`));
+      }
+      const points = hosts[0]?.cpu.length || 24, step = (width - left) / (points - 1);
+      const every = width < 420 ? 12 : 6;
+      for (let i = 0; i < points; i += every) {
+        const ago = points - 1 - i;
+        svg.append(el('text', {x: left + i * step, y: height - 6, 'text-anchor': i === 0 ? 'start' : 'middle'}, ago ? `−${ago}h` : 'now'));
+      }
+      svg.append(el('text', {x: width, y: height - 6, 'text-anchor': 'end'}, 'now'));
+      hosts.forEach((host, index) => {
+        const d = host.cpu.map((v, i) => `${i ? 'L' : 'M'}${(left + i * step).toFixed(1)},${(top + plot - v / 100 * plot).toFixed(1)}`).join('');
+        const path = el('path', {class: `line s${index % 3}`, d});
+        if (dashes[index % 3]) path.setAttribute('stroke-dasharray', dashes[index % 3]);
+        svg.append(path);
+      });
+    }
+    LCARS.onData(({data, missing}) => {
+      hosts = !missing && Array.isArray(data?.hosts) ? data.hosts.filter(h => Array.isArray(h.cpu) && h.cpu.length > 1) : [];
+      document.getElementById('legend').replaceChildren(...hosts.map((host, index) => {
+        const li = document.createElement('li');
+        const key = el('svg', {viewBox: '0 0 32 12', 'aria-hidden': 'true'});
+        const line = el('line', {class: `line s${index % 3}`, x1: 2, x2: 30, y1: 6, y2: 6});
+        if (dashes[index % 3]) line.setAttribute('stroke-dasharray', dashes[index % 3]);
+        key.append(line); li.append(key, host.name); return li;
+      }));
+      document.getElementById('rows').replaceChildren(...hosts.map(host => {
+        const tr = document.createElement('tr');
+        const average = Math.round(host.cpu.reduce((a, b) => a + b, 0) / host.cpu.length);
+        for (const value of [host.name, `${average}%`, `${Math.max(...host.cpu)}%`]) { const td = document.createElement('td'); td.textContent = value; tr.append(td); }
+        return tr;
+      }));
+      draw();
+    });
+    new ResizeObserver(() => requestAnimationFrame(draw)).observe(document.body);
+  </script>
+</body>
+</html>

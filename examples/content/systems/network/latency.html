@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Latency</title>
+  <meta name="lcars:size" content="wide">
+  <meta name="lcars:order" content="10">
+  <meta name="lcars:accent" content="blue">
+  <style>
+    ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 1rem; }
+    li + li { margin-top: 0; }
+    li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .25rem 1rem; align-items: baseline; }
+    .target { font: 500 1.125rem/1.2 var(--lcars-label-font); letter-spacing: .03em; }
+    .value { font: 500 1.5rem/1 var(--lcars-label-font); }
+    .bar { grid-column: 1 / -1; position: relative; height: .75rem; background: #25212b; border-radius: 0 .375rem .375rem 0; }
+    .bar span { position: absolute; inset: 0 auto 0 0; background: var(--lcars-blue); border-radius: inherit; }
+    .bar i { position: absolute; top: -.25rem; bottom: -.25rem; width: 2px; background: var(--lcars-text); }
+    .note { grid-column: 1 / -1; color: var(--lcars-muted); font-size: .875rem; }
+    .warning .bar span { background: var(--lcars-orange); } .warning .note { color: var(--lcars-orange); }
+    .key { margin: 1rem 0 0; color: var(--lcars-muted); font-size: .875rem; }
+  </style>
+</head>
+<body>
+  <ul id="targets"></ul>
+  <p class="key">Bar: median round trip. Tick: 95th percentile. Scale 0–100 ms.</p>
+  <script>
+    LCARS.onData(({data, missing}) => {
+      const targets = !missing && Array.isArray(data?.targets) ? data.targets : [];
+      document.getElementById('targets').replaceChildren(...targets.map(target => {
+        const li = document.createElement('li'); li.className = target.state === 'Warning' ? 'warning' : '';
+        li.innerHTML = '<span class="target"></span><span class="value"></span><span class="bar" aria-hidden="true"><span></span><i></i></span><span class="note"></span>';
+        li.querySelector('.target').textContent = target.name;
+        li.querySelector('.value').textContent = `${target.p50} ms`;
+        li.querySelector('.bar span').style.width = `${Math.min(100, target.p50)}%`;
+        li.querySelector('.bar i').style.left = `${Math.min(100, target.p95)}%`;
+        li.querySelector('.note').textContent = `${target.state} · p95 ${target.p95} ms · ${target.loss}% loss`;
+        return li;
+      }));
+    });
+  </script>
+</body>
+</html>

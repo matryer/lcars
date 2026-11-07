@@ -3,15 +3,43 @@
   'use strict';
   const $ = id => document.getElementById(id);
   const palette = {apricot:'#FFCC99',orange:'#FF9900',lilac:'#CC99CC',blue:'#9999FF',peach:'#FF9966',critical:'#FF6666'};
-  const section = decodeURIComponent(location.pathname.split('/')[2] || '');
+  // Sections live at /s/{id} or /s/{id}/{sub}. Navigation between them stays in the page.
+  const sectionFromPath = () => location.pathname.startsWith('/s/') ? location.pathname.slice(3).split('/').map(decodeURIComponent).join('/') : '';
+  const tabHref = id => '/s/' + id.split('/').map(encodeURIComponent).join('/');
+  let section = sectionFromPath();
   const panels = new Map(), instances = new Map();
   function freshNonce() { return Array.from(crypto.getRandomValues(new Uint8Array(24)), byte => byte.toString(16).padStart(2,'0')).join(''); }
-  let state, etag = '', navigationKey = '', timer, backoff = 2000, lastCheck, polling = false, capturing = false, latched = false;
+  let state, etag = '', navigationKey = '', subnavKey = '', timer, backoff = 2000, lastCheck, polling = false, capturing = false, latched = false;
   let frozenClock, captureError;
   let eventStream, eventsHealthy = false, pendingCheck = false, eventFailures = 0;
   let storedMotion = false;
   try { storedMotion = localStorage.getItem('lcars-motion-off') === 'true'; } catch {}
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+  const motionOn = () => !storedMotion && !reduced.matches && !capturing;
+  function applyMotion() { document.documentElement.dataset.motion = motionOn() ? 'on' : 'off'; if (!motionOn()) finishTyping(); }
+  // Headings and labels type in quickly; with motion off they appear at once.
+  const typing = new Map();
+  function typeText(element, text, delay = 0) {
+    text = String(text ?? '');
+    if (element.dataset.text === text) return;
+    element.dataset.text = text;
+    cancelAnimationFrame(typing.get(element)); typing.delete(element);
+    if (!motionOn() || !text) { element.textContent = text; element.classList.remove('typing'); element.removeAttribute('aria-label'); return; }
+    const start = performance.now() + delay, perCharacter = Math.max(6, Math.min(16, 360 / text.length));
+    element.textContent = ''; element.classList.add('typing'); element.setAttribute('aria-label', text);
+    const step = now => {
+      const count = Math.max(0, Math.min(text.length, Math.ceil((now - start) / perCharacter)));
+      if (element.textContent.length !== count) element.textContent = text.slice(0, count);
+      if (count < text.length) typing.set(element, requestAnimationFrame(step));
+      else { typing.delete(element); element.classList.remove('typing'); element.removeAttribute('aria-label'); }
+    };
+    typing.set(element, requestAnimationFrame(step));
+  }
+  function finishTyping() {
+    for (const [element, frame] of typing) { cancelAnimationFrame(frame); element.textContent = element.dataset.text; element.classList.remove('typing'); element.removeAttribute('aria-label'); }
+    typing.clear();
+  }
+  const setText = (element, text) => { if (element.textContent !== text) element.textContent = text; };
   function node(tag, text, className) { const element = document.createElement(tag); if (text !== undefined) element.textContent = text; if (className) element.className = className; return element; }
   const errorText = error => String(error?.message || error || 'Unknown error').slice(0,1500);
   function diagnosticText(item) { return typeof item === 'string' ? item : item?.message || item?.error || JSON.stringify(item); }
@@ -33,40 +61,108 @@
     if (data && !data.missing) return {date:data.envelope?.updatedAt,stale:data.envelope?.staleAfterSeconds};
     return {date:instance.panel.observedAt,stale:instance.panel.staleAfterSeconds};
   }
-  function exact(value) { const date = new Date(value); return validTime(value) ? new Intl.DateTimeFormat(undefined,{dateStyle:'full',timeStyle:'long'}).format(date) : 'Update time unknown'; }
+  function exact(value) { const date = new Date(value); return validTime(value) ? new Intl.DateTimeFormat(undefined,{dateStyle:'full',timeStyle:'long'}).format(date) : 'Unknown'; }
   function relative(value) {
-    const ms = Date.parse(value); if (!validTime(value)) return 'Update time unknown';
+    const ms = Date.parse(value); if (!validTime(value)) return '—';
     const age = Date.parse(displayClock())-ms;
     if (age < -1000) return exact(value) + ' (clock skew: future timestamp)';
-    if (age < 60000) return 'just now';
-    if (age < 3600000) return Math.floor(age/60000) + ' min ago';
-    if (age < 86400000) return Math.floor(age/3600000) + ' hr ago';
-    return Math.floor(age/86400000) + ' days ago';
+    if (age < 3600000) return Math.max(1, Math.floor(age/60000)) + 'm';
+    if (age < 86400000) return Math.floor(age/3600000) + 'h';
+    return Math.floor(age/86400000) + 'd';
+  }
+  function compact(value) {
+    const delta = Date.parse(value)-Date.parse(displayClock()), size = Math.abs(delta);
+    const [step,letter] = size < 3600000 ? [60000,'m'] : size < 86400000 ? [3600000,'h'] : [86400000,'d'];
+    const count = Math.max(1, Math.floor(size/step));
+    return delta > 0 ? 'in '+count+letter : count+letter;
+  }
+  let modalClosed;
+  function modalSpec(raw) {
+    if (!raw || typeof raw !== 'object' || typeof raw.title !== 'string' || !raw.title.trim()) return;
+    const fields = (Array.isArray(raw.fields) ? raw.fields : []).slice(0,40).map(field => {
+      const label = typeof field?.label === 'string' ? field.label.slice(0,100) : '';
+      if (!label) return;
+      if (typeof field.time === 'string' && validTime(field.time)) return {label,time:field.time};
+      if (typeof field.value === 'string' || typeof field.value === 'number') return {label,value:String(field.value).slice(0,500)};
+    }).filter(Boolean);
+    return {title:raw.title.trim().slice(0,200),body:typeof raw.body === 'string' ? raw.body.slice(0,4000) : '',fields};
+  }
+  function refreshModalTimes() { for (const element of $('modal').querySelectorAll('[data-relative]')) setText(element, compact(element.dataset.relative)); }
+  // One timer, set for the next moment any visible relative label would change.
+  let timesTimer;
+  function untilChange(value) {
+    const ms = Date.parse(value); if (!Number.isFinite(ms)) return Infinity;
+    const delta = ms - Date.parse(displayClock()), size = Math.abs(delta);
+    const step = size < 3600000 ? 60000 : size < 86400000 ? 3600000 : 86400000;
+    return delta <= 0 ? (Math.floor(size/step)+1)*step - size : (size % step) || step;
+  }
+  function scheduleTimes(values) {
+    clearTimeout(timesTimer);
+    if (frozenClock || document.hidden) return;
+    const wait = Math.min(3600000, ...values.map(untilChange));
+    if (Number.isFinite(wait)) timesTimer = setTimeout(updateTimes, Math.max(1000, wait + 50));
+  }
+  function showModal(spec, accent, onClose) {
+    const dialog = $('modal');
+    if (dialog.open) dialog.close();
+    $('modal-title').textContent = spec.title;
+    const body = $('modal-body'); body.replaceChildren();
+    for (const paragraph of spec.body.split(/\n\s*\n/).map(text => text.trim()).filter(Boolean)) body.append(node('p',paragraph));
+    if (spec.fields.length) {
+      const list = node('dl',undefined,'modal-fields');
+      for (const field of spec.fields) {
+        const value = node('dd');
+        if (field.time) {
+          const time = node('time',exact(field.time)); time.dateTime = field.time;
+          const ago = node('span',compact(field.time),'muted'); ago.dataset.relative = field.time;
+          value.append(time,ago);
+        } else value.textContent = field.value;
+        list.append(node('dt',field.label),value);
+      }
+      body.append(list);
+    }
+    dialog.querySelector('.modal-panel').style.setProperty('--accent',accent || palette.lilac);
+    modalClosed = onClose;
+    dialog.showModal();
+    $('modal-close').focus();
+  }
+  $('modal').addEventListener('close',()=>{ const done = modalClosed; modalClosed = undefined; done?.(); });
+  $('modal').addEventListener('click',event=>{ if (event.target === $('modal')) $('modal').close(); });
+  $('modal-close').addEventListener('click',()=>$('modal').close());
+  function showTimes(record) {
+    const times = record.times || {};
+    const fields = [];
+    fields.push(times.updated ? {label:times.failed ? 'Last verified update' : 'Updated',time:times.updated} : {label:'Updated',value:'Unknown'});
+    fields.push(times.observed ? {label:'Observed',time:times.observed} : {label:'Observed',value:'Unknown'});
+    if (times.observed && times.staleAfter > 0) fields.push({label:'Stale after',value:times.staleAfter+' seconds'+(times.stale ? ' · Stale now' : '')});
+    const body = 'Updated is when this panel’s document, resources or live data last changed on disk. Observed is when the producer says the data was measured; LCARS never invents it.';
+    showModal({title:record.latest.title || 'Panel',body,fields},palette[record.display?.panel.accent || record.latest.accent],undefined);
   }
   function updateTimes() {
-    let latest;
+    let latest; const watched = [];
     for (const record of panels.values()) {
       const instance = record.display;
       const updated = instance ? updatedFor(instance.panel,instance.ackData) : '';
       if (updated && (!latest || Date.parse(updated)>Date.parse(latest))) latest = updated;
-      record.updated.textContent = updated ? (instance.failed ? 'Last verified update ' : 'Updated ') + relative(updated) : 'Update time unknown';
-      record.exact.replaceChildren();
-      if (updated) { const time = node('time',exact(updated)); time.dateTime = updated; record.exact.append(time); }
-      else record.exact.textContent = 'Update time unknown';
-      record.sourceTime.textContent = 'Timestamp source: accepted document, included resources and acknowledged live data file modification times.';
       const observed = observation(instance);
-      record.observation.classList.remove('stale');
-      if (validTime(observed.date)) {
-        const age = Date.parse(displayClock())-Date.parse(observed.date);
-        const stale = Number.isFinite(age) && observed.stale > 0 && age > observed.stale*1000;
-        record.observation.textContent = (stale ? 'Stale · ' : '') + 'Data observed ' + relative(observed.date);
-        record.observation.classList.toggle('stale',stale);
-        const time = node('time',exact(observed.date)); time.dateTime = observed.date;
-        record.observedExact.replaceChildren(node('span','Observation time: '),time);
-      } else { record.observation.textContent = 'Observation time unknown'; record.observedExact.textContent = ''; }
+      const known = validTime(observed.date);
+      const age = known ? Date.parse(displayClock())-Date.parse(observed.date) : NaN;
+      const stale = Number.isFinite(age) && observed.stale > 0 && age > observed.stale*1000;
+      // One visible time: when the data was observed if the producer said so, otherwise when it was published.
+      const shown = known ? observed.date : updated;
+      record.times = {updated, observed: known ? observed.date : '', staleAfter: observed.stale, stale, failed: !!instance?.failed};
+      setText(record.updated, (stale ? 'Stale · ' : '') + relative(shown));
+      if (validTime(shown)) watched.push(shown);
+      record.updated.title = validTime(shown) ? exact(shown) : '';
+      record.updated.setAttribute('aria-label', (stale ? 'Stale. ' : '') + (known ? 'Observed ' : 'Updated ') + relative(shown) + '. Show time details');
+      record.updated.classList.toggle('stale',stale);
       record.unavailable.hidden = !(instance && instance.panel.kind === 'html' && instance.ackData?.missing);
     }
-    $('section-updated').textContent = panels.size ? (latest ? 'Latest content update ' + relative(latest) : 'Latest content update unknown') : 'No content yet';
+    setText($('section-updated'), latest ? relative(latest) : '');
+    $('section-updated').title = latest ? exact(latest) : '';
+    if (latest) watched.push(latest);
+    if ($('modal').open) { refreshModalTimes(); for (const element of $('modal').querySelectorAll('[data-relative]')) watched.push(element.dataset.relative); }
+    scheduleTimes(watched);
   }
   function showProblems(record) {
     const values = [...(record.latest.diagnostics || []).map(diagnosticText),...record.runtime];
@@ -108,7 +204,8 @@
     clearTimeout(instance.deadline);instance.deadline=undefined;
     instance.frame.classList.remove('frame-candidate'); instance.frame.removeAttribute('aria-hidden'); instance.frame.removeAttribute('tabindex'); instance.frame.inert=false;
     dispose(old);
-    record.heading.textContent = instance.panel.title;
+    typeText(record.heading, instance.panel.title);
+    reveal(record, instance);
     record.wrapper.dataset.size = instance.panel.size || 'normal';
     record.wrapper.style.setProperty('--accent',palette[instance.panel.accent] || palette.lilac);
     record.source.hidden = !instance.panel.sourceUrl;
@@ -120,6 +217,18 @@
     }
     record.runtime=[];showProblems(record); updateTimes();
     if (hadFocus) record.heading.focus({preventScroll:true});
+  }
+  // The slot grows to the frame's height, then a first display fades in.
+  function sizeSlot(record, height) {
+    if (!Number.isFinite(height)) return;
+    record.slot.style.height = height + 'px';
+  }
+  function reveal(record, instance) {
+    sizeSlot(record, parseFloat(instance.frame.style.height) || 80);
+    if (record.revealed) return;
+    record.revealed = true;
+    record.slot.classList.remove('pending');
+    if (motionOn()) instance.frame.classList.add('reveal');
   }
   function stage(record,panel) {
     if (!panel.bundleHash || !panel.url) return;
@@ -137,34 +246,92 @@
   }
   function makePanel(panel) {
     const wrapper=node('section',undefined,'panel');wrapper.dataset.panelId=panel.id;wrapper.dataset.size=panel.size || 'normal';wrapper.style.setProperty('--accent',palette[panel.accent]||palette.lilac);
-    const headingBox=node('div',undefined,'panel-heading');const heading=node('h2',panel.title);heading.tabIndex=-1;headingBox.append(heading);
-    const body=node('div',undefined,'panel-body');const slot=node('div',undefined,'frame-slot');const problems=node('div');
-    const meta=node('div',undefined,'panel-meta');const details=node('details');const summary=node('summary');const updated=node('span','Update time unknown');summary.append(updated);const exactTime=node('p'),sourceTime=node('p'),observedExact=node('p');details.append(summary,exactTime,sourceTime,observedExact);
-    const observed=node('p','Observation time unknown','observation'),unavailable=node('p','Data unavailable');unavailable.hidden=true;
+    const headingBox=node('div',undefined,'panel-heading');const heading=node('h2');heading.tabIndex=-1;headingBox.append(heading);typeText(heading,panel.title);
+    const body=node('div',undefined,'panel-body');const slot=node('div',undefined,'frame-slot pending');const problems=node('div');
+    const meta=node('div',undefined,'panel-meta');const updated=node('button','—','panel-time');updated.type='button';updated.setAttribute('aria-haspopup','dialog');
+    const unavailable=node('p','Data unavailable');unavailable.hidden=true;
     const source=node('a','Source','source');source.target='_blank';source.rel='noopener noreferrer';source.hidden=true;
-    const sourceLinks=node('div');meta.append(details,observed,unavailable,source,sourceLinks);body.append(slot,problems,meta);wrapper.append(headingBox,body);
-    const record={wrapper,heading,slot,problems,updated,exact:exactTime,sourceTime,observedExact,observation:observed,unavailable,source,sourceLinks,runtime:[],latest:panel,failedHash:''};
+    const sourceLinks=node('div');meta.append(updated,unavailable,source,sourceLinks);body.append(slot,problems,meta);wrapper.append(headingBox,body);
+    const record={wrapper,heading,slot,problems,updated,unavailable,source,sourceLinks,runtime:[],latest:panel,failedHash:''};
+    updated.addEventListener('click',()=>showTimes(record));
     return record;
+  }
+  function markCurrent(container) {
+    for (const link of container.children) {
+      const id = link.dataset.tab, here = section === id || (container.id === 'navigation' && section.startsWith(id + '/'));
+      if (here) link.setAttribute('aria-current','page'); else link.removeAttribute('aria-current');
+    }
+  }
+  function tabLinks(container, tabs, stagger) {
+    container.replaceChildren(...tabs.map((tab, index) => {
+      const link = node('a', undefined); link.href = tabHref(tab.id); link.dataset.tab = tab.id;
+      typeText(link, tab.title || tab.id, stagger ? index * 70 : 0);
+      if (stagger && motionOn()) { link.classList.add('enter'); link.style.animationDelay = (index * 70) + 'ms'; }
+      return link;
+    }));
   }
   function apply(next) {
     state=next;
     const tabs=next.tabs || [];
-    const navKey=JSON.stringify(tabs.map(tab=>[tab.id,tab.title]));
-    if(navKey!==navigationKey){navigationKey=navKey;$('navigation').replaceChildren();for(const tab of tabs){const link=node('a',tab.title || tab.id);link.href='/s/'+encodeURIComponent(tab.id);if(tab.id===section)link.setAttribute('aria-current','page');$('navigation').append(link);}}
+    const top=tabs.filter(tab=>!tab.parent);
+    const navKey=JSON.stringify(top.map(tab=>[tab.id,tab.title]));
+    if(navKey!==navigationKey){navigationKey=navKey;tabLinks($('navigation'),top,true);}
+    markCurrent($('navigation'));
+    const topId=section.split('/')[0];
+    const topTab=tabs.find(tab=>tab.id===topId&&!tab.parent);
     const current=tabs.find(tab=>tab.id===section);
-    $('section-title').textContent=current?.title || (section?'Section unavailable':'Your canvas is ready');
-    document.title=(current?.title || 'Canvas')+' · LCARS';
+    const children=tabs.filter(tab=>tab.parent===topId);
+    const ownPanels=(next.panels || []).some(panel=>panel.tab===topId);
+    // A section with only sub-sections opens its first sub-section.
+    if(current&&!current.parent&&children.length&&!ownPanels){section=children[0].id;history.replaceState(history.state,'',tabHref(section));return apply(next);}
+    const subTabs=children.length?[...(ownPanels&&topTab?[topTab]:[]),...children]:[];
+    const subKey=JSON.stringify(subTabs.map(tab=>[tab.id,tab.title]));
+    if(subKey!==subnavKey){subnavKey=subKey;tabLinks($('subnav'),subTabs,false);}
+    $('subnav').hidden=!subTabs.length;
+    markCurrent($('subnav'));
+    typeText($('section-title'),topTab?.title || (section?'Section unavailable':'Your canvas is ready'));
+    document.title=[current?.parent?current.title:'',topTab?.title || 'Canvas','LCARS'].filter(Boolean).join(' · ');
     $('global-diagnostics').replaceChildren();
-    for(const value of [...(next.diagnostics || []),...(current?.diagnostics || [])])$('global-diagnostics').append(node('p',diagnosticText(value),'diagnostic'));
+    for(const value of [...(next.diagnostics || []),...(current?.parent?topTab?.diagnostics || []:[]),...(current?.diagnostics || [])])$('global-diagnostics').append(node('p',diagnosticText(value),'diagnostic'));
     const visible=(next.panels || []).filter(panel=>panel.tab===section);
     const ids=new Set(visible.map(panel=>panel.id));
     for(const [id,record]of panels){if(!ids.has(id)){dispose(record.candidate);dispose(record.display);record.wrapper.remove();panels.delete(id);}}
     let previous;
-    for(const panel of visible){let record=panels.get(panel.id);if(!record){record=makePanel(panel);panels.set(panel.id,record);}record.latest=panel;showProblems(record);stage(record,panel);const expected=previous?previous.nextElementSibling:$('panels').firstElementChild;if(expected!==record.wrapper)$('panels').insertBefore(record.wrapper,expected);previous=record.wrapper;}
+    let index=0;for(const panel of visible){let record=panels.get(panel.id);if(!record){record=makePanel(panel);panels.set(panel.id,record);if(booted)enter(record,index);}index++;record.latest=panel;showProblems(record);stage(record,panel);const expected=previous?previous.nextElementSibling:$('panels').firstElementChild;if(expected!==record.wrapper)$('panels').insertBefore(record.wrapper,expected);previous=record.wrapper;}
     $('empty').hidden=!!visible.length;
-    if(!visible.length){$('empty').replaceChildren();if(!current&&section){$('empty').append(node('h2','This section is unavailable'),node('p','It may have been moved or removed.'));if(tabs[0]){const link=node('a','Open '+tabs[0].title);link.href='/s/'+encodeURIComponent(tabs[0].id);$('empty').append(link);}}else{$('empty').append(node('h2',current?'No content yet':'Create your first section'),node('p','Publish an HTML, Markdown or text panel in a section folder. LCARS will discover it automatically.'));const link=node('a','Read the authoring guide');link.href='/agent-guide';$('empty').append(link);}}
+    if(!visible.length){$('empty').replaceChildren();if(!current&&section){$('empty').append(node('h2','This section is unavailable'),node('p','It may have been moved or removed.'));if(tabs[0]){const link=node('a','Open '+tabs[0].title);link.href=tabHref(tabs[0].id);$('empty').append(link);}}else{$('empty').append(node('h2',current?'No content yet':'Create your first section'),node('p','Publish an HTML, Markdown or text panel in a section folder. LCARS will discover it automatically.'));const link=node('a','Read the authoring guide');link.href='/agent-guide';$('empty').append(link);}}
     updateTimes();
+    finishBoot();
   }
+  // First load: the frame draws itself while state arrives; the loading grid
+  // crossfades out as panels rise in. Panels are never hidden, because browsers
+  // pause hidden cross-origin frames and they would not be ready when shown.
+  let booted=false;
+  function enter(record,index){if(!motionOn())return;record.wrapper.classList.add('enter');record.wrapper.style.animationDelay=(index*60)+'ms';}
+  function endBoot(){
+    if(booted)return;booted=true;
+    document.body.classList.remove('booting');
+    [...panels.values()].forEach((record,index)=>enter(record,index));
+    const boot=$('boot');if(!boot)return;
+    if(motionOn()){boot.classList.add('done');setTimeout(()=>boot.remove(),220);}else boot.remove();
+  }
+  function finishBoot(){endBoot();}
+  function navigate(path,push=true){
+    if(push)history.pushState(null,'',path);
+    section=sectionFromPath();
+    $('menu').setAttribute('aria-expanded','false');document.querySelector('.shell').classList.remove('menu-open');
+    if(state)apply(state);
+    scrollTo(0,0);$('main').focus({preventScroll:true});
+  }
+  document.addEventListener('click',event=>{
+    const link=event.target.closest?.('a[href]');
+    if(!link||event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey||link.target||capturing)return;
+    const url=new URL(link.href,location.href);
+    if(url.origin!==location.origin||!url.pathname.startsWith('/s/'))return;
+    event.preventDefault();
+    if(url.pathname!==location.pathname)navigate(url.pathname);
+  });
+  window.addEventListener('popstate',()=>navigate(location.pathname,false));
   async function poll() {
     clearTimeout(timer);
     if(latched||document.hidden)return;
@@ -175,7 +342,7 @@
       const response=await fetch('/api/state',{headers:etag?{'If-None-Match':etag}:{},cache:'no-store',signal:AbortSignal.timeout(10000)});
       if(response.status!==304&&!response.ok)throw new Error('State request failed: '+response.status);
       if(response.status!==304){const next=await response.json();if(!latched){etag=response.headers.get('ETag')||'';apply(next);}}
-      lastCheck=new Date();$('connection').textContent='Connected';$('connection').classList.remove('disconnected');$('last-check').textContent='Last successful check '+lastCheck.toLocaleTimeString();backoff=2000;succeeded=true;
+      lastCheck=new Date();$('connection').textContent='Connected';$('connection').classList.remove('disconnected');$('last-check').textContent=lastCheck.toLocaleTimeString();backoff=2000;succeeded=true;
     }catch(error){$('connection').textContent='Disconnected · retaining displayed content';$('connection').classList.add('disconnected');backoff=Math.min(backoff*2,30000);}
     finally{
       polling=false;
@@ -210,11 +377,20 @@
     if(!message||message.v!==1||typeof message.nonce!=='string'||message.nonce.length>100)return;
     const instance=instances.get(message.nonce);
     if(!instance||event.source!==instance.frame.contentWindow||instance.failed)return;
-    if(!['hello','height','ready','dataAck','error','captured'].includes(message.type))return;
+    if(!['hello','height','ready','dataAck','error','captured','modal'].includes(message.type))return;
+    if(message.type==='modal'){
+      const id=typeof message.id==='string'?message.id.slice(0,40):'';
+      const spec=modalSpec(message.modal);
+      // Only the displayed frame the user is interacting with may open a modal.
+      if(!id||!spec||capturing||instance.record.display!==instance||document.activeElement!==instance.frame||$('modal').open){if(id)post(instance,'modalClosed',{id,opened:false});return;}
+      showModal(spec,palette[instance.panel.accent],()=>{if(instances.has(instance.nonce)){instance.frame.focus();post(instance,'modalClosed',{id,opened:true});}});
+      return;
+    }
     if(message.type==='hello'){if(instance.initialized)return;instance.initialized=true;post(instance,'init',{data:instance.desired,state:frameState()});}
     else if(message.type==='height'){
       if(typeof message.height!=='number'||!Number.isFinite(message.height)||message.height<80||message.height>2400)return;
       instance.frame.style.height=message.height+'px';
+      if(instance.record.display===instance)sizeSlot(instance.record,message.height);
       if(Array.isArray(message.overflow))instance.overflow=message.overflow.filter(value=>typeof value==='string').slice(0,20);
       if(Array.isArray(message.diagnostics)&&message.diagnostics.length){instance.record.runtime=message.diagnostics.filter(value=>typeof value==='string').slice(0,10).map(value=>value.slice(0,1500));showProblems(instance.record);}
     }else if(message.type==='dataAck'){
@@ -236,16 +412,17 @@
     }
   });
   $('menu').addEventListener('click',()=>{const open=$('menu').getAttribute('aria-expanded')!=='true';$('menu').setAttribute('aria-expanded',String(open));document.querySelector('.shell').classList.toggle('menu-open',open);});
-  function motionUI(){ $('motion').setAttribute('aria-pressed',String(storedMotion));sendLifecycle(); }
+  function motionUI(){ $('motion').setAttribute('aria-pressed',String(storedMotion));applyMotion();sendLifecycle(); }
   $('motion').addEventListener('click',()=>{storedMotion=!storedMotion;try{localStorage.setItem('lcars-motion-off',String(storedMotion));}catch{}motionUI();});
-  reduced.addEventListener('change',sendLifecycle);
-  document.addEventListener('visibilitychange',()=>{sendLifecycle();if(document.hidden){clearTimeout(timer);closeEvents();}else{connectEvents();void poll();}});
-  setInterval(()=>{updateTimes();sendLifecycle();},60000);
+  reduced.addEventListener('change',()=>{applyMotion();sendLifecycle();});
+  document.addEventListener('visibilitychange',()=>{sendLifecycle();if(document.hidden){clearTimeout(timer);clearTimeout(timesTimer);closeEvents();}else{updateTimes();connectEvents();void poll();}});
+  // Components get a fresh display clock on each wall-clock minute.
+  (function minuteTick(){setTimeout(()=>{if(!document.hidden&&!frozenClock)sendLifecycle();minuteTick();},60050-Date.now()%60000);})();
   async function waitFor(predicate,deadline){while(!predicate()){if(captureError)throw new Error(captureError);if(performance.now()>deadline)throw new Error('Capture timed out waiting for expected displayed hashes and readiness');await new Promise(resolve=>setTimeout(resolve,40));}}
   window.LCARSCapture=async(options={})=>{
     if(capturing)throw new Error('Capture already in progress');
     if((options.expectPanelHash||options.expectDataHash)&&!options.panel)throw new Error('Expected hashes require a panel');
-    capturing=true;frozenClock=new Date().toISOString();sendLifecycle();
+    capturing=true;frozenClock=new Date().toISOString();if($('modal').open)$('modal').close();applyMotion();endBoot();clearTimeout(timesTimer);sendLifecycle();
     const deadline=performance.now()+10500;
     try{
       await waitFor(()=>{

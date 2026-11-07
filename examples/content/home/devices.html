@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Devices</title>
+  <meta name="lcars:order" content="20">
+  <meta name="lcars:accent" content="lilac">
+  <style>
+    ul { list-style: none; margin: 0; padding: 0; }
+    li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .25rem 1rem; padding: .5rem 0; border-bottom: 1px solid #3a3440; }
+    li + li { margin-top: 0; }
+    .status { color: var(--lcars-muted); }
+    .warning { color: var(--lcars-orange); }
+  </style>
+</head>
+<body>
+  <ul id="devices"></ul>
+  <script>
+    LCARS.onData(({data, missing}) => {
+      const devices = !missing && Array.isArray(data?.devices) ? data.devices : [];
+      document.getElementById('devices').replaceChildren(...devices.map(device => {
+        const li = document.createElement('li');
+        const name = document.createElement('span'); name.textContent = device.name;
+        const status = document.createElement('span'); status.className = 'status' + (device.state === 'Warning' ? ' warning' : '');
+        status.textContent = device.state === 'Warning' ? `Warning · ${device.status}` : device.status;
+        li.append(name, status);
+        return li;
+      }));
+      if (!devices.length) document.getElementById('devices').textContent = 'Unavailable';
+    });
+  </script>
+</body>
+</html>

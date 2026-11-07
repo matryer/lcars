@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Services</title>
+  <meta name="lcars:order" content="30">
+  <meta name="lcars:accent" content="lilac">
+  <style>
+    .summary { font: 500 2rem/1.1 var(--lcars-label-font); margin: 0 0 .75rem; }
+    ul { list-style: none; margin: 0; padding: 0; }
+    li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .25rem 1rem; padding: .375rem 0; border-bottom: 1px solid #3a3440; }
+    li + li { margin-top: 0; }
+    .host { color: var(--lcars-muted); font-size: .875rem; }
+    .warning { color: var(--lcars-orange); }
+  </style>
+</head>
+<body>
+  <p class="summary" id="summary">Unavailable</p>
+  <ul id="services"></ul>
+  <script>
+    LCARS.onData(({data, missing}) => {
+      const services = !missing && Array.isArray(data?.services) ? data.services : [];
+      const normal = services.filter(s => s.state === 'Normal').length;
+      document.getElementById('summary').textContent = services.length ? `${normal} of ${services.length} normal` : 'Unavailable';
+      document.getElementById('services').replaceChildren(...[...services].sort((a, b) => (a.state === 'Normal') - (b.state === 'Normal')).map(service => {
+        const li = document.createElement('li');
+        const name = document.createElement('span'); name.textContent = service.name;
+        const status = document.createElement('span');
+        if (service.state === 'Normal') { status.className = 'host'; status.textContent = service.host; }
+        else { status.className = 'warning'; status.textContent = `${service.state} · ${service.note}`; }
+        li.append(name, status); return li;
+      }));
+    });
+  </script>
+</body>
+</html>

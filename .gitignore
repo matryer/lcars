@@ -1,12 +1,15 @@
 # Ignore everything at the top level; allow project files explicitly.
 /*
 !/.gitignore
+!/.github/
 !/README.md
 !/PLAN.md
 !/LICENSE
 !/go.mod
 !/go.sum
 !/mise.toml
+!/package.json
+!/package-lock.json
 !/cmd/
 !/internal/
 !/web/
@@ -27,3 +30,4 @@ credentials*.json
 
 # Build output inside allowed folders.
 /cmd/lcars/lcars
+node_modules/

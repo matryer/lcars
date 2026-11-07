@@ -206,3 +206,37 @@ func TestRejectsUnknownHosts(t *testing.T) {
 		}
 	}
 }
+
+func TestSubSectionRoutesAndComponents(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "systems", "network", "assets", "latency")
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "systems", "network", "latency.html"), []byte(`<title>Latency</title><script src="assets/latency/app.js"></script>`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "app.js"), []byte("window.ok=1"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	store, err := content.New(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := server.New(store)
+	for path, want := range map[string]int{"/s/systems": 200, "/s/systems/network": 200, "/s/systems/network/deeper": 404, "/s/Systems": 404} {
+		if got := request(handler, path, nil).Code; got != want {
+			t.Errorf("%s = %d, want %d", path, got, want)
+		}
+	}
+	url := store.State().Panels[0].URL
+	if got := request(handler, url, nil); got.Code != 200 || !strings.Contains(got.Body.String(), "Latency") {
+		t.Fatalf("component %s = %d", url, got.Code)
+	}
+	if got := request(handler, strings.Replace(url, "index.html", "assets/latency/app.js", 1), nil); got.Code != 200 || got.Body.String() != "window.ok=1" {
+		t.Fatalf("component asset = %d %q", got.Code, got.Body.String())
+	}
+	if got := request(handler, strings.Replace(url, "systems~network~latency", "systems~network~latency~extra", 1), nil).Code; got != 404 {
+		t.Fatalf("malformed component ID = %d, want 404", got)
+	}
+}

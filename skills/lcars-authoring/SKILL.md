@@ -15,4 +15,6 @@ Publish files atomically, run `lcars validate`, capture the accepted panel at de
 
 For recurring data, put `<panel>.<interval>.py` (or `.js`, `.sh`, `.ps1`) beside the HTML panel. Follow the guide’s scheduled-script contract: one JSON envelope on stdout, diagnostics on stderr, and LCARS owns the output file. Execution requires an already authorized `--run-scripts` service; validation never executes scripts. Keep using `LCARS.onData()` in the panel; the shell handles SSE and recovery.
 
+Show times with `<lcars-time datetime="…" label="…">`, not hand-formatted text. Put secondary detail behind `LCARS.openModal({title, body, fields})`, opened from a click.
+
 This skill neither deploys LCARS nor installs itself. Copy the entire folder explicitly into a supported skill directory when desired; agents without skills can read the guide directly.

@@ -56,6 +56,57 @@ func (s *Store) Scan() error {
 	found := map[string]string{}
 	invalid := map[string]string{}
 	preserve := map[string]bool{}
+	// scanTab reads one section folder. Top-level sections may hold one level
+	// of sub-section folders, which become sub-tabs with IDs "section/sub".
+	var scanTab func(id, parent string)
+	scanTab = func(id, parent string) {
+		dir := filepath.Join(s.root, filepath.FromSlash(id))
+		t, entries, err := s.loadTab(id, parent, dir)
+		tabs[id] = t
+		if err != nil {
+			preserve[id] = true
+			for key, old := range s.tabs {
+				if old.Parent == id {
+					tabs[key], preserve[key] = old, true
+				}
+			}
+			return
+		}
+		for _, f := range entries {
+			n := f.Name()
+			if ignored(n) || n == "_section.json" {
+				continue
+			}
+			if n == "assets" && f.IsDir() {
+				continue
+			}
+			if scriptExtension(n) {
+				continue
+			}
+			if f.IsDir() && f.Type()&os.ModeSymlink == 0 && parent == "" && validID(n) {
+				scanTab(id+"/"+n, id)
+				continue
+			}
+			ext := filepath.Ext(n)
+			stem := strings.TrimSuffix(n, ext)
+			if f.IsDir() || !validID(stem) || (ext != ".html" && ext != ".md" && ext != ".txt") {
+				what := "panel entry"
+				if f.IsDir() && parent != "" {
+					what = "nested folder (sub-sections are one level deep)"
+				}
+				diag = append(diag, "Warning: unsupported "+what+": "+id+"/"+n)
+				continue
+			}
+			pid := id + "/" + stem
+			if _, ok := found[pid]; ok {
+				invalid[pid] = "duplicate filename stem across formats"
+			}
+			found[pid] = filepath.Join(dir, n)
+			if f.Type()&os.ModeSymlink != 0 {
+				invalid[pid] = "symlink refused"
+			}
+		}
+	}
 	for _, d := range dirs {
 		name := d.Name()
 		if ignored(name) {
@@ -69,84 +120,10 @@ func (s *Store) Scan() error {
 			diag = append(diag, "Warning: unsupported tab entry: "+name)
 			continue
 		}
-		t := Tab{ID: name, Title: label(name), Order: 100, Accent: "lilac", Diagnostics: []string{}}
-		if old, ok := s.tabs[name]; ok {
-			t = old
-			t.Diagnostics = []string{}
-		}
-		entries, err := os.ReadDir(filepath.Join(s.root, name))
-		if err != nil {
-			t.Diagnostics = append(t.Diagnostics, "Directory unavailable: "+err.Error())
-			tabs[name] = t
-			preserve[name] = true
-			continue
-		}
-		if b, _, err := readFile(filepath.Join(s.root, name, "_section.json"), MaxText); err == nil {
-			var cfg struct {
-				Version int    `json:"version"`
-				Title   string `json:"title"`
-				Order   *int   `json:"order"`
-				Accent  string `json:"accent"`
-			}
-			err = strictJSON(b, &cfg)
-			if err == nil && cfg.Version != 1 {
-				err = fmt.Errorf("version must be 1")
-			}
-			if err == nil && cfg.Accent != "" && !palette[cfg.Accent] {
-				err = fmt.Errorf("unknown accent")
-			}
-			if err == nil && len(cfg.Title) > 256 {
-				err = fmt.Errorf("title exceeds 256 characters")
-			}
-			if err != nil {
-				t.Diagnostics = append(t.Diagnostics, "_section.json: "+err.Error())
-			} else {
-				t = Tab{ID: name, Title: label(name), Order: 100, Accent: "lilac", Diagnostics: []string{}}
-				if cfg.Title != "" {
-					t.Title = cfg.Title
-				}
-				if cfg.Order != nil {
-					t.Order = *cfg.Order
-				}
-				if cfg.Accent != "" {
-					t.Accent = cfg.Accent
-				}
-			}
-		} else if !os.IsNotExist(err) {
-			t.Diagnostics = append(t.Diagnostics, "_section.json: "+err.Error())
-		} else {
-			t = Tab{ID: name, Title: label(name), Order: 100, Accent: "lilac", Diagnostics: []string{}}
-		}
-		tabs[name] = t
-		for _, f := range entries {
-			n := f.Name()
-			if ignored(n) || n == "_section.json" {
-				continue
-			}
-			if n == "assets" && f.IsDir() {
-				continue
-			}
-			if scriptExtension(n) {
-				continue
-			}
-			ext := filepath.Ext(n)
-			stem := strings.TrimSuffix(n, ext)
-			if f.IsDir() || !validID(stem) || (ext != ".html" && ext != ".md" && ext != ".txt") {
-				diag = append(diag, "Warning: unsupported panel entry: "+name+"/"+n)
-				continue
-			}
-			id := name + "/" + stem
-			if _, ok := found[id]; ok {
-				invalid[id] = "duplicate filename stem across formats"
-			}
-			found[id] = filepath.Join(s.root, name, n)
-			if f.Type()&os.ModeSymlink != 0 {
-				invalid[id] = "symlink refused"
-			}
-		}
+		scanTab(name, "")
 	}
 	for id, a := range s.current {
-		if _, ok := found[id]; !ok && !preserve[a.Panel.Tab] {
+		if _, ok := found[id]; !ok && !preserve[a.Panel.Tab] && !preserve[parentTab(a.Panel.Tab)] {
 			s.retire(a.Bundle)
 			delete(s.current, id)
 		}
@@ -163,8 +140,8 @@ func (s *Store) Scan() error {
 		reject := func(err error) {
 			a := old
 			if !has {
-				parts := strings.Split(id, "/")
-				a = accepted{Panel: Panel{ID: id, Tab: parts[0], Title: label(parts[1]), Kind: strings.TrimPrefix(filepath.Ext(p), "."), Size: "normal", Accent: "lilac", Order: 100, Data: Data{Hash: "missing", Missing: true}}, path: p}
+				tab, stem := splitPanelID(id)
+				a = accepted{Panel: Panel{ID: id, Tab: tab, Title: label(stem), Kind: strings.TrimPrefix(filepath.Ext(p), "."), Size: "normal", Accent: "lilac", Order: 100, Data: Data{Hash: "missing", Missing: true}}, path: p}
 			}
 			a.Panel.Diagnostics = []string{"Update rejected: " + err.Error()}
 			s.current[id] = a
@@ -206,7 +183,7 @@ func (s *Store) Scan() error {
 			}
 		}
 		if a.Panel.Kind == "html" {
-			a.Panel.Data, err = loadData(filepath.Join(filepath.Dir(p), "assets", strings.Split(id, "/")[1], "data.json"), a.Panel.Data)
+			a.Panel.Data, err = loadData(filepath.Join(filepath.Dir(p), "assets", panelStem(id), "data.json"), a.Panel.Data)
 			if err != nil {
 				a.Panel.Diagnostics = append(a.Panel.Diagnostics, "Data update rejected: "+err.Error())
 			}
@@ -216,6 +193,74 @@ func (s *Store) Scan() error {
 	s.publish(diag)
 	return nil
 }
+
+// loadTab reads a section folder's listing and optional _section.json. A
+// listing error keeps the previous tab so its panels are preserved.
+func (s *Store) loadTab(id, parent, dir string) (Tab, []os.DirEntry, error) {
+	name := id[strings.LastIndexByte(id, '/')+1:]
+	fresh := Tab{ID: id, Parent: parent, Title: label(name), Order: 100, Accent: "lilac", Diagnostics: []string{}}
+	t := fresh
+	if old, ok := s.tabs[id]; ok {
+		t = old
+		t.Diagnostics = []string{}
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Diagnostics = append(t.Diagnostics, "Directory unavailable: "+err.Error())
+		return t, nil, err
+	}
+	b, _, err := readFile(filepath.Join(dir, "_section.json"), MaxText)
+	if os.IsNotExist(err) {
+		return fresh, entries, nil
+	}
+	if err == nil {
+		var cfg struct {
+			Version int    `json:"version"`
+			Title   string `json:"title"`
+			Order   *int   `json:"order"`
+			Accent  string `json:"accent"`
+		}
+		err = strictJSON(b, &cfg)
+		if err == nil && cfg.Version != 1 {
+			err = fmt.Errorf("version must be 1")
+		}
+		if err == nil && cfg.Accent != "" && !palette[cfg.Accent] {
+			err = fmt.Errorf("unknown accent")
+		}
+		if err == nil && len(cfg.Title) > 256 {
+			err = fmt.Errorf("title exceeds 256 characters")
+		}
+		if err == nil {
+			t = fresh
+			if cfg.Title != "" {
+				t.Title = cfg.Title
+			}
+			if cfg.Order != nil {
+				t.Order = *cfg.Order
+			}
+			if cfg.Accent != "" {
+				t.Accent = cfg.Accent
+			}
+			return t, entries, nil
+		}
+	}
+	t.Diagnostics = append(t.Diagnostics, "_section.json: "+err.Error())
+	return t, entries, nil
+}
+
+// splitPanelID separates "section[/sub]/stem" into its tab ID and file stem.
+func splitPanelID(id string) (tab, stem string) {
+	i := strings.LastIndexByte(id, '/')
+	return id[:i], id[i+1:]
+}
+func panelStem(id string) string { _, stem := splitPanelID(id); return stem }
+func parentTab(tab string) string {
+	if i := strings.IndexByte(tab, '/'); i >= 0 {
+		return tab[:i]
+	}
+	return ""
+}
+
 func loadData(path string, old Data) (Data, error) {
 	for _, dir := range []string{filepath.Dir(filepath.Dir(path)), filepath.Dir(path)} {
 		st, e := os.Lstat(dir)

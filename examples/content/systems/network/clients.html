@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Wi-Fi clients</title>
+  <meta name="lcars:order" content="20">
+  <meta name="lcars:accent" content="lilac">
+  <style>
+    .count { font: 500 2rem/1.1 var(--lcars-label-font); margin: 0 0 .75rem; }
+    ul { list-style: none; margin: 0; padding: 0; }
+    li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 1rem; padding: .5rem 0; border-bottom: 1px solid #3a3440; }
+    li + li { margin-top: 0; }
+    .meta { color: var(--lcars-muted); font-size: .875rem; }
+    .signal { display: flex; gap: 2px; align-items: flex-end; height: 1rem; grid-row: span 2; align-self: center; }
+    .signal i { width: 4px; background: #3a3440; border-radius: 0 2px 0 0; }
+    .signal i:nth-child(1) { height: 25%; } .signal i:nth-child(2) { height: 50%; } .signal i:nth-child(3) { height: 75%; } .signal i:nth-child(4) { height: 100%; }
+    .signal i.on { background: var(--lcars-lilac); }
+  </style>
+</head>
+<body>
+  <p class="count" id="count">Unavailable</p>
+  <ul id="clients"></ul>
+  <script>
+    LCARS.onData(({data, missing}) => {
+      const clients = !missing && Array.isArray(data?.clients) ? data.clients : [];
+      document.getElementById('count').textContent = clients.length ? `${clients.length} connected` : 'Unavailable';
+      document.getElementById('clients').replaceChildren(...clients.map(client => {
+        const li = document.createElement('li');
+        const name = document.createElement('span'); name.textContent = client.name;
+        const bars = document.createElement('span'); bars.className = 'signal'; bars.setAttribute('role', 'img'); bars.setAttribute('aria-label', `Signal ${client.bars} of 4`);
+        for (let i = 1; i <= 4; i++) { const bar = document.createElement('i'); if (i <= client.bars) bar.className = 'on'; bars.append(bar); }
+        const meta = document.createElement('span'); meta.className = 'meta'; meta.textContent = `${client.band} · ${client.room}`;
+        li.append(name, bars, meta);
+        return li;
+      }));
+    });
+  </script>
+</body>
+</html>

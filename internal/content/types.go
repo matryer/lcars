@@ -26,6 +26,7 @@ const (
 
 type Tab struct {
 	ID          string   `json:"id"`
+	Parent      string   `json:"parent,omitempty"`
 	Title       string   `json:"title"`
 	Order       int      `json:"order"`
 	Accent      string   `json:"accent"`

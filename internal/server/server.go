@@ -68,23 +68,29 @@ func New(store *content.Store, allowedHosts ...string) http.Handler {
 			}
 			shell(w, r)
 		case strings.HasPrefix(p, "/s/"):
-			if strings.Contains(strings.TrimPrefix(p, "/s/"), "/") {
+			// Sections and one level of sub-sections: /s/systems, /s/systems/network.
+			if !content.ValidTabID(strings.TrimPrefix(p, "/s/")) {
 				http.NotFound(w, r)
 				return
 			}
 			shell(w, r)
 		case strings.HasPrefix(p, "/component/"):
 			parts := strings.Split(strings.TrimPrefix(p, "/component/"), "/")
-			if len(parts) < 4 || len(parts[0]) != 64 {
+			if len(parts) < 3 || len(parts[0]) != 64 {
 				http.NotFound(w, r)
 				return
 			}
-			name := strings.Join(parts[3:], "/")
+			id, ok := content.PanelIDFromSegment(parts[1])
+			if !ok {
+				http.NotFound(w, r)
+				return
+			}
+			name := strings.Join(parts[2:], "/")
 			if path.Clean(name) != name || strings.Contains(name, "\\") {
 				http.Error(w, "Invalid resource path", 400)
 				return
 			}
-			res, ok := store.Resource(parts[0], parts[1]+"/"+parts[2], name)
+			res, ok := store.Resource(parts[0], id, name)
 			if !ok {
 				http.Error(w, "Resource expired or unavailable. Retry latest.", 410)
 				return

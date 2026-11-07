@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>This week</title>
+  <meta name="lcars:size" content="full">
+  <meta name="lcars:order" content="10">
+  <meta name="lcars:accent" content="blue">
+  <style>
+    .week { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+    .day { min-width: 0; }
+    .day h3 { display: flex; align-items: baseline; gap: .5rem; margin: 0 0 .5rem; padding: .25rem .5rem; font-size: 1.125rem; color: var(--lcars-text); background: #3a3440; border-radius: 0 .75rem .75rem 0; }
+    .day h3 .date { margin-left: auto; font-size: 1rem; }
+    .weekend h3 { background: #2a2630; }
+    .today h3 { background: var(--lcars-blue); color: var(--lcars-ink); }
+    .today-label { font-size: .875rem; }
+    ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .375rem; }
+    li + li { margin-top: 0; }
+    .event { padding: .25rem .5rem; border-left: 3px solid var(--lcars-blue); font-size: .9375rem; line-height: 1.35; }
+    .event .time { display: block; font: 500 .9375rem/1.3 var(--lcars-label-font); color: var(--lcars-blue); letter-spacing: .03em; }
+    .all-day { background: #26233a; border-left-style: dashed; }
+    .all-day .time { color: var(--lcars-muted); }
+    .none { color: var(--lcars-muted); font-size: .875rem; padding-left: .5rem; }
+    @media (min-width: 760px) {
+      .week { grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .5rem; }
+      .day h3 { font-size: 1rem; }
+      .none { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="week" id="week"></div>
+  <script>
+    let events = [], clock = new Date().toISOString();
+    const names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    function render() {
+      const now = new Date(clock);
+      const todayIndex = (now.getDay() + 6) % 7;
+      const monday = new Date(now); monday.setHours(0, 0, 0, 0); monday.setDate(now.getDate() - todayIndex);
+      const week = document.getElementById('week');
+      week.replaceChildren(...names.map((name, index) => {
+        const date = new Date(monday); date.setDate(monday.getDate() + index);
+        const day = document.createElement('section');
+        day.className = 'day' + (index === todayIndex ? ' today' : '') + (index > 4 ? ' weekend' : '');
+        const heading = document.createElement('h3');
+        heading.append(name);
+        if (index === todayIndex) { const label = document.createElement('span'); label.className = 'today-label'; label.textContent = '· Today'; heading.append(label); }
+        const number = document.createElement('span'); number.className = 'date'; number.textContent = date.getDate(); heading.append(number);
+        day.setAttribute('aria-label', date.toLocaleDateString(undefined, {weekday: 'long', day: 'numeric', month: 'long'}) + (index === todayIndex ? ', today' : ''));
+        const list = document.createElement('ul');
+        const items = events.filter(event => event.day === index).sort((a, b) => (b.allDay ? 1 : 0) - (a.allDay ? 1 : 0) || String(a.start).localeCompare(String(b.start)));
+        for (const event of items) {
+          const li = document.createElement('li'); li.className = 'event' + (event.allDay ? ' all-day' : '');
+          const time = document.createElement('span'); time.className = 'time'; time.textContent = event.allDay ? 'All day' : `${event.start}–${event.end}`;
+          li.append(time, event.title);
+          list.append(li);
+        }
+        day.append(heading, list);
+        if (!items.length) { const none = document.createElement('p'); none.className = 'none'; none.textContent = 'Nothing scheduled'; day.append(none); }
+        return day;
+      }));
+    }
+    LCARS.onState(state => { clock = state.clock; render(); });
+    LCARS.onData(({data, missing}) => { events = !missing && Array.isArray(data?.events) ? data.events : []; render(); });
+  </script>
+</body>
+</html>

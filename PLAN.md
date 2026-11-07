@@ -66,7 +66,7 @@ content/
         diagram.svg
 ```
 
-Each immediate ordinary directory is a tab at `/s/{tab}`. Each `.html`, `.md`, or `.txt` file directly inside it is a panel. `assets/` contains resources and never creates panels. Ignore hidden and temporary files; warn about unsupported visible files and directories. JSON is live data, not a panel format.
+Each immediate ordinary directory is a tab at `/s/{tab}`. An ordinary directory inside a tab (other than `assets/`) is a sub-tab at `/s/{tab}/{sub}` with the same rules, its own optional `_section.json` and `assets/`; deeper folders are diagnosed. The tab's own panels form its first sub-tab; a tab with only sub-tabs opens the first. Panel IDs are `tab/panel` or `tab/sub/panel`, and component URLs encode the ID as one path segment (`tab~sub~panel`). Each `.html`, `.md`, or `.txt` file directly inside it is a panel. `assets/` contains resources and never creates panels. Ignore hidden and temporary files; warn about unsupported visible files and directories. JSON is live data, not a panel format.
 
 Tab and panel IDs use lowercase letters, digits, and hyphens, 1–64 characters. A panel's identity is `tab/filename-stem`; duplicate stems across formats are errors. Labels default to filenames with hyphens replaced by spaces. Sort tabs by folder name and panels by order, then ID. Optional tab `_section.json` accepts only `version: 1`, `title`, `order` (default 100), and a named palette `accent` (default lilac); tabs sort by that order first. No registry, per-panel sidecar, or site configuration is required.
 
@@ -76,7 +76,7 @@ For Markdown, a first level-one heading supplies the panel title and is omitted 
 
 The shell owns navigation, a skip link, main landmark, and consistent panel frames. Active navigation uses `aria-current` and a visible marker. The desktop rail is replaced by an accessible compact menu below a 760px viewport. Navigation uses ordinary section links and browser back/forward; there is no custom router, drill-down URL state, or transition coordinator. Root `/` redirects to the first tab or shows a welcome screen. Missing/deleted sections show a labelled state with a link to an available section.
 
-Use CSS Grid based on content width: one column below 720px, two below 1200px, otherwise three. Normal panels span one column, wide panels up to two, full panels all columns. Preserve DOM order; no dense packing or masonry. Let content determine row heights. Titles wrap, long URLs break, panels have `min-width: 0`, and tables can scroll within their panel. Never create page-level horizontal overflow or shrink prose to fit.
+Use CSS Grid based on content width: one column below 720px, two below 960px, otherwise three. Normal panels span one column, wide panels up to two, full panels all columns. Preserve DOM order; no dense packing or masonry. Let content determine row heights. Titles wrap, long URLs break, panels have `min-width: 0`, and tables can scroll within their panel. Never create page-level horizontal overflow or shrink prose to fit.
 
 ### Component sizing contract
 
@@ -103,11 +103,11 @@ Horizontal scrolling is an explicit exception for genuinely two-dimensional mate
 
 ## 4. Last updated, everywhere
 
-Every panel frame shows `Updated 5 min ago`, supplied by the host even for metadata-free text. A keyboard- and touch-accessible disclosure exposes the exact date, time, timezone, and timestamp source. Use semantic `<time>` elements, readable muted text, and the viewer's timezone. Recompute relative labels once per minute without screen-reader announcements.
+Every panel frame shows a single compact relative time such as `5m` or `2h`, supplied by the host even for metadata-free text. A keyboard- and touch-accessible disclosure exposes the exact date, time, timezone, and timestamp source. Use semantic `<time>` elements, readable muted text, and the viewer's timezone. Recompute relative labels once per minute without screen-reader announcements.
 
-`Updated` means the displayed content revision's file update time: snapshot the latest modification time of its document, included assets, and acknowledged live data. Only successfully displayed changes advance this value. Polling, rejected changes, pending replacement frames, and unchanged-byte writes do not refresh it. Keep these times with accepted hashes in memory; on startup use file times, never startup time. File times are best-effort publishing evidence, not an audit history: externally touching files before a restart can change them. Unknown times show `Update time unknown`; future times show the absolute time with a clock-skew diagnostic.
+`Updated` means the displayed content revision's file update time: snapshot the latest modification time of its document, included assets, and acknowledged live data. Only successfully displayed changes advance this value. Polling, rejected changes, pending replacement frames, and unchanged-byte writes do not refresh it. Keep these times with accepted hashes in memory; on startup use file times, never startup time. File times are best-effort publishing evidence, not an audit history: externally touching files before a restart can change them. Unknown times show `—`; future times show the absolute time with a clock-skew diagnostic.
 
-Producer `updatedAt` means when the underlying information was observed. Expose `Data observed …` separately, or `Observation time unknown`. If its stale threshold expires, visibly show `Stale` and the observation age. Changing a heading must not make old measurements look fresh. Rejected updates retain the displayed revision's timestamp; rendering failures label it as last verified. Deleting live data shows `Data unavailable`, without inventing a file timestamp.
+Producer `updatedAt` means when the underlying information was observed. When known, the visible time is the observation age instead of the publication age; the disclosure lists both exact times, or `Observation time unknown`. If its stale threshold expires, visibly show `Stale` and the observation age. Changing a heading must not make old measurements look fresh. Rejected updates retain the displayed revision's timestamp; rendering failures label it as last verified in the disclosure. Deleting live data shows `Data unavailable`, without inventing a file timestamp.
 
 Each section header shows `Latest content update …` for its displayed panels, explicitly the newest update rather than a claim that every panel is fresh. Empty sections show `No content yet`. The shell footer reports connection status and the last successful check separately from content freshness. No per-cell timestamps or update-history system.
 
@@ -155,6 +155,8 @@ The small `window.LCARS` helper provides:
 - `onState(callback)`: provide visibility, motion preference, capture status, and the display clock. Stop optional animation when hidden or motion is off. Initial rendering must work while hidden and must not depend on animation ticks.
 - `deferReady()`: called during initial execution, return a completion function for asynchronous initialization. Ordinary DOM, fonts, images, and initial-data readiness are handled automatically.
 - `onCapture(callback)`: draw a still for the supplied frozen display clock, awaiting any returned promise. No timeline controls or animation recording.
+- `openModal({title, body, fields})`: ask the host to show a text-only modal in the panel's accent. The host builds it with text nodes, accepts it only from the displayed frame the user is interacting with (user activation in the frame, iframe focused in the shell), one at a time and never during capture, and resolves `true` on close or `false` if refused. Fields carry a `value` or an RFC3339 `time`.
+- `<lcars-time datetime label>`: compact relative time (`5m`, `2h`, `in 3d`) driven by the display clock; pressing it opens the exact time in a modal. The frame's own update time is a button that opens the same kind of modal.
 
 A minimal author script is ordinary JavaScript:
 
@@ -222,7 +224,7 @@ Keep the app SemVer in `internal/buildinfo/VERSION`. `lcars version --json` and 
 
 Use Go's standard HTTP/JSON/embed libraries, small browser JavaScript, and maintained HTML/Markdown parsers. No frontend framework, database, queue, plugin engine, or bundler in the host. Escape host text and avoid injecting arbitrary values into `innerHTML`.
 
-Routes: `/`, `/s/{tab}`, `/api/state`, `/api/events`, `/api/version`, immutable component/asset URLs, `/toolkit/*`, `/agent-guide`, and `/healthz`. State includes accepted panel metadata, content, live data, diagnostics, and revision with ETag. Keep content responses private to the user's authenticated deployment; immutable means versioned bytes, not permission to use public shared caches. Bind to loopback by default and deploy behind the user's private authenticated proxy. Reject Host names other than `localhost`, IP addresses, and explicit `--allowed-host` values, so DNS-rebinding pages cannot read content. No upstream fetch service or public multi-user authentication system.
+Routes: `/`, `/s/{tab}`, `/s/{tab}/{sub}`, `/api/state`, `/api/events`, `/api/version`, immutable component/asset URLs, `/toolkit/*`, `/agent-guide`, and `/healthz`. State includes accepted panel metadata, content, live data, diagnostics, and revision with ETag. Keep content responses private to the user's authenticated deployment; immutable means versioned bytes, not permission to use public shared caches. Bind to loopback by default and deploy behind the user's private authenticated proxy. Reject Host names other than `localhost`, IP addresses, and explicit `--allowed-host` values, so DNS-rebinding pages cannot read content. No upstream fetch service or public multi-user authentication system.
 
 When deploying on a tailnet machine, discover its full DNS hostname with `tailscale status --json` and verify reachability before sharing URLs, preserving port/path. On Kitt, maintain the homepage registry in `/home/matryer/code/github.com/matryer/devtools` under its repository instructions. Planning does not launch or register a service.
 

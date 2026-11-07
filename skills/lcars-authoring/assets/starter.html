@@ -16,7 +16,6 @@
 </head>
 <body>
   <section class="reading" aria-label="Current reading">
-    <p>Current reading</p>
     <output class="value" id="value">Unavailable</output>
     <p class="note" id="note">Waiting for data.</p>
   </section>
@@ -29,7 +28,7 @@
         ? `${new Intl.NumberFormat().format(data.value)} ${String(data.unit ?? '')}`.trim()
         : 'Unavailable';
       document.querySelector('#note').textContent = available
-        ? 'The frame shows publication and observation times separately.'
+        ? ''
         : 'No reading is available. Publish data to this panel’s asset directory.';
     });
   </script>

@@ -213,15 +213,22 @@ func ordinaryDir(path string) error {
 }
 func (r *Runner) publish(job content.Script, b []byte) error {
 	parts := strings.Split(job.ID, "/")
-	if len(parts) != 2 {
+	if len(parts) < 2 || len(parts) > 3 {
 		return errors.New("invalid panel ID")
 	}
 	dir := r.root
 	if err := ordinaryDir(dir); err != nil {
 		return err
 	}
-	for _, part := range []string{parts[0], "assets", parts[1]} {
+	// section[/sub]/assets/stem: only the asset folders are created.
+	for i, part := range append(append(append([]string{}, parts[:len(parts)-1]...), "assets"), parts[len(parts)-1]) {
 		dir = filepath.Join(dir, part)
+		if i < len(parts)-1 {
+			if err := ordinaryDir(dir); err != nil {
+				return err
+			}
+			continue
+		}
 		if err := os.Mkdir(dir, 0700); err != nil && !os.IsExist(err) {
 			return err
 		}

@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Household energy · demo</title>
+  <title>Household energy</title>
   <meta name="lcars:size" content="wide">
-  <meta name="lcars:order" content="20">
+  <meta name="lcars:order" content="110">
   <meta name="lcars:accent" content="blue">
   <style>
     .energy { display: grid; gap: 1.5rem; }
@@ -20,7 +20,7 @@
     #solar-bar { background: var(--lcars-apricot, #ffcc99); }
     details { border-top: 2px solid var(--lcars-lilac, #cc99cc); padding-top: .5rem; }
     summary { cursor: pointer; min-height: 44px; padding: .5rem 0; }
-    @media (min-width: 540px) { .energy { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } details, .demo { grid-column: 1 / -1; } }
+    @media (min-width: 540px) { .energy { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } details { grid-column: 1 / -1; } }
   </style>
 </head>
 <body>
@@ -30,8 +30,7 @@
       <div class="flow"><span>Solar generation</span><strong id="solar">Unavailable</strong><div class="bar" aria-hidden="true"><span id="solar-bar"></span></div></div>
       <div class="flow"><span>Grid import</span><strong id="grid">Unavailable</strong><div class="bar" aria-hidden="true"><span id="grid-bar"></span></div></div>
     </div>
-    <details><summary>About these readings</summary><p>Demo values only. Bars compare each source with a 2,000 W reference. Keep this disclosure open while updating the data file: a data-only publication preserves this interaction state.</p></details>
-    <p class="label demo">Illustrative fixture · no connected household account</p>
+    <details><summary>About these readings</summary><p>Bars compare each source with a 2,000 W reference. Edit the data file with this open: it stays open.</p></details>
   </section>
   <script>
     const format = value => Number.isFinite(value) ? `${new Intl.NumberFormat().format(value)} W` : 'Unavailable';
@@ -42,7 +41,7 @@
         const bar = document.getElementById(`${name}-bar`);
         if (bar) bar.style.width = `${Number.isFinite(value) ? Math.max(0, Math.min(100, value / 2000 * 100)) : 0}%`;
       }
-      document.getElementById('status').textContent = !missing && Number.isFinite(data?.demand) ? 'Normal · demo reading' : 'Data unavailable';
+      document.getElementById('status').textContent = !missing && Number.isFinite(data?.demand) ? 'Normal' : 'Data unavailable';
     });
   </script>
 </body>

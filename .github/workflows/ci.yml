@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  javascript:
+    name: JavaScript tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm test
+
+  go:
+    name: Go tests and vet
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      # Browser tests look for chromium; GitHub's Ubuntu runner ships Chrome.
+      - name: Make Chrome available to browser tests
+        run: |
+          chrome_path="$(command -v google-chrome)"
+          "$chrome_path" --version
+          sudo ln -sf "$chrome_path" /usr/local/bin/chromium
+      - run: go test -race ./...
+      - run: go vet ./...

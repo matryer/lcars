@@ -214,7 +214,19 @@ func run(args []string, out, errOut io.Writer) (err error) {
 		srv := httptest.NewServer(server.New(store))
 		defer srv.Close()
 		tabs := []string{}
-		for _, tab := range store.State().Tabs {
+		st := store.State()
+		hasPanels, hasChildren := map[string]bool{}, map[string]bool{}
+		for _, panel := range st.Panels {
+			hasPanels[panel.Tab] = true
+		}
+		for _, tab := range st.Tabs {
+			hasChildren[tab.Parent] = true
+		}
+		for _, tab := range st.Tabs {
+			// A section with only sub-sections opens its first; capture that once.
+			if tab.Parent == "" && hasChildren[tab.ID] && !hasPanels[tab.ID] {
+				continue
+			}
 			tabs = append(tabs, tab.ID)
 		}
 		if len(tabs) == 0 {
@@ -234,7 +246,8 @@ func run(args []string, out, errOut io.Writer) (err error) {
 				}
 				pageURL, stem := srv.URL+"/", "welcome"
 				if tab != "" {
-					pageURL, stem = srv.URL+"/s/"+tab, tab
+					// "_" cannot appear in IDs, so sub-sections get distinct names.
+					pageURL, stem = srv.URL+"/s/"+tab, strings.ReplaceAll(tab, "/", "_")
 				}
 				filename := filepath.Join(*output, stem+"-"+viewport.name+".png")
 				_, err := capture.Run(ctx, capture.Options{URL: pageURL, Browser: *browserExe, Width: viewport.width, Height: viewport.height, Out: filename})

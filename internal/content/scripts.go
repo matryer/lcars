@@ -43,17 +43,19 @@ func DiscoverScripts(root string) ([]Script, []string) {
 	if err != nil {
 		return nil, []string{"Scripts: " + err.Error()}
 	}
-	for _, dir := range dirs {
-		if ignored(dir.Name()) || !dir.IsDir() || !validID(dir.Name()) {
-			continue
-		}
-		entries, err := os.ReadDir(filepath.Join(root, dir.Name()))
+	var scan func(rel string, depth int)
+	scan = func(rel string, depth int) {
+		entries, err := os.ReadDir(filepath.Join(root, filepath.FromSlash(rel)))
 		if err != nil {
 			diags = append(diags, "Scripts: "+err.Error())
-			continue
+			return
 		}
 		for _, entry := range entries {
 			name := entry.Name()
+			if depth == 0 && entry.IsDir() && entry.Type()&os.ModeSymlink == 0 && name != "assets" && !ignored(name) && validID(name) {
+				scan(rel+"/"+name, depth+1)
+				continue
+			}
 			if ignored(name) || !scriptExtension(name) {
 				continue
 			}
@@ -63,8 +65,8 @@ func DiscoverScripts(root string) ([]Script, []string) {
 				continue
 			} // Ordinary helper, not a scheduled producer.
 			panel, interval := stem[:split], stem[split+1:]
-			path := filepath.Join(root, dir.Name(), name)
-			reject := func(message string) { diags = append(diags, dir.Name()+"/"+name+": "+message) }
+			path := filepath.Join(root, filepath.FromSlash(rel), name)
+			reject := func(message string) { diags = append(diags, rel+"/"+name+": "+message) }
 			parts := intervalPattern.FindStringSubmatch(interval)
 			if !validID(panel) || parts == nil {
 				reject("expected <panel>.<positive interval s/m/h/d>.<script extension>")
@@ -82,16 +84,22 @@ func DiscoverScripts(root string) ([]Script, []string) {
 				reject(e.Error())
 				continue
 			}
-			if _, _, e = readFile(filepath.Join(root, dir.Name(), panel+".html"), MaxHTML); e != nil {
+			if _, _, e = readFile(filepath.Join(root, filepath.FromSlash(rel), panel+".html"), MaxHTML); e != nil {
 				reject("matching regular HTML panel required")
 				continue
 			}
-			id := dir.Name() + "/" + panel
+			id := rel + "/" + panel
 			if _, ok := jobs[id]; ok {
 				duplicates[id] = true
 			}
 			jobs[id] = Script{ID: id, Path: path, Extension: strings.TrimPrefix(filepath.Ext(name), "."), Revision: Hash(b), Every: time.Duration(n) * unit}
 		}
+	}
+	for _, dir := range dirs {
+		if ignored(dir.Name()) || !dir.IsDir() || dir.Type()&os.ModeSymlink != 0 || !validID(dir.Name()) {
+			continue
+		}
+		scan(dir.Name(), 0)
 	}
 	out := []Script{}
 	for id, job := range jobs {

@@ -12,7 +12,7 @@ mise run build
 ./lcars serve --data ./examples/content
 ```
 
-The server binds to loopback on port 8080 by default. The included content is explicitly labelled demo information. For a fuller example with screenshots, see [examples/machine](examples/machine/README.md): an illustrative machine-stats canvas with charts, a sortable table and live data files. For your own canvas, create an empty data directory and run `lcars serve --data /path/to/content`. The root must exist; the app does not create or populate it for you.
+The server binds to loopback on port 8080 by default. The included content is a made-up demo canvas, labelled as such in its Overview briefing. Its six sections (Overview, Home, Week, Systems with Network and Storage sub-sections, Projects with Garden and Renovation, Notes) show Markdown, plain text and HTML panels, SVG charts, a sortable table, a responsive week calendar and live `data.json` files. For your own canvas, create an empty data directory and run `lcars serve --data /path/to/content`. The root must exist; the app does not create or populate it for you.
 
 ```text
 content/
@@ -24,7 +24,7 @@ content/
         data.json
 ```
 
-Each immediate folder is a tab at `/s/{tab}`. Direct `.html`, `.md`, and `.txt` files become panels. HTML supplies an interior; the host supplies the frame. Live `assets/{panel}/data.json` updates an HTML panel without resetting its interaction state. Panels and resources are private content and should be treated accordingly.
+Each immediate folder is a section at `/s/{tab}`; a folder inside it is a sub-section at `/s/{tab}/{sub}`, shown as a tab bar on that page. Direct `.html`, `.md`, and `.txt` files become panels. HTML supplies an interior; the host supplies the frame. Live `assets/{panel}/data.json` updates an HTML panel without resetting its interaction state. Panels and resources are private content and should be treated accordingly.
 
 Agents can discover the bundled skill directly from CLI help:
 
@@ -65,6 +65,21 @@ Run checks with:
 ```sh
 mise run test
 ```
+
+This installs the locked JavaScript test dependencies, runs the shell behavior tests,
+then runs Go race tests and vet. The JavaScript tests use Node.js (24 via mise),
+jsdom, and a controlled clock/network; they need no browser. They exercise
+the shipped shell script and HTML through state responses, iframe messages, and
+navigation events. The Go browser tests additionally check real iframe behavior
+and layout when Chrome/Chromium is installed. To run just the JavaScript tests:
+
+```sh
+npm ci --ignore-scripts
+npm test
+```
+
+GitHub Actions runs the JavaScript tests and Go race tests/vet on pushes and pull
+requests, with Chrome available for the browser integration tests.
 
 ## Publishing model
 
@@ -108,7 +123,7 @@ When sharing a tailnet service, discover the serving machine's full DNS hostname
 
 ```sh
 mise run build                         # build ./lcars
-mise run test                          # race tests and vet, including browser tests if installed
+mise run test                          # JS tests, Go race tests and vet; browser tests if installed
 mise run bump                          # bump patch only (0.1.0 → 0.1.1)
 mise run bump --bump minor              # bump minor and reset patch
 mise run release                       # bump patch, test and package

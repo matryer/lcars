@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "data": {
+    "volumes": [
+      {"host": "vault", "name": "tank", "usedTB": 6.9, "sizeTB": 8, "scrubDaysAgo": 12},
+      {"host": "vault", "name": "scratch", "usedTB": 0.4, "sizeTB": 1, "scrubDaysAgo": 12},
+      {"host": "lumen", "name": "media", "usedTB": 2.5, "sizeTB": 4, "scrubDaysAgo": 30},
+      {"host": "atlas", "name": "home", "usedTB": 0.9, "sizeTB": 2, "scrubDaysAgo": 5}
+    ]
+  }
+}

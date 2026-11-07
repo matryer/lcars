@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "data": {
+    "events": [
+      {"day": 0, "start": "09:30", "end": "09:45", "title": "Standup"},
+      {"day": 0, "start": "14:00", "end": "15:00", "title": "Quarterly planning"},
+      {"day": 1, "start": "09:30", "end": "09:45", "title": "Standup"},
+      {"day": 1, "start": "19:00", "end": "20:30", "title": "Book club"},
+      {"day": 2, "allDay": true, "title": "Bin collection"},
+      {"day": 2, "start": "09:30", "end": "09:45", "title": "Standup"},
+      {"day": 2, "start": "11:00", "end": "12:00", "title": "Interview: platform engineer"},
+      {"day": 3, "start": "09:30", "end": "09:45", "title": "Standup"},
+      {"day": 3, "start": "13:00", "end": "13:30", "title": "1:1 with Sam"},
+      {"day": 3, "start": "18:30", "end": "20:00", "title": "Five-a-side football"},
+      {"day": 4, "start": "09:30", "end": "09:45", "title": "Standup"},
+      {"day": 4, "start": "10:00", "end": "10:45", "title": "Design review"},
+      {"day": 4, "start": "15:00", "end": "15:30", "title": "Dentist"},
+      {"day": 5, "allDay": true, "title": "Lisbon trip"},
+      {"day": 5, "start": "07:10", "end": "10:05", "title": "Flight TP1351"},
+      {"day": 6, "allDay": true, "title": "Lisbon trip"},
+      {"day": 6, "start": "18:40", "end": "21:25", "title": "Flight TP1360"}
+    ]
+  }
+}

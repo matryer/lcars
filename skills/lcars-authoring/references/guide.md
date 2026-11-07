@@ -4,7 +4,7 @@ Authoring contract **1.0**; bridge and JSON schemas use version 1. Discover the 
 
 ## Choose a path and format
 
-Find the existing deployment's data root and URL; do not assume this repository is its live content directory. Each immediate folder is a section at `/s/{tab}`. Each direct `.html`, `.md`, or `.txt` file is a panel:
+Find the existing deployment's data root and URL; do not assume this repository is its live content directory. Each immediate folder is a section at `/s/{tab}`, listed in the rail. A folder inside a section is a sub-section at `/s/{tab}/{sub}`, shown as a tab bar under the section title; sub-sections are one level deep. Each direct `.html`, `.md`, or `.txt` file is a panel:
 
 ```text
 content/
@@ -17,7 +17,23 @@ content/
         diagram.svg
 ```
 
-Tab and panel IDs are 1–64 lowercase letters, digits, or hyphens. The full panel ID above is `overview/energy`. Duplicate filename stems across formats are invalid. Hidden and temporary files are ignored. Visible unsupported files/directories produce diagnostics. `assets/` never creates panels.
+A sub-section is laid out the same way, with its own optional `_section.json` and `assets/`:
+
+```text
+content/
+  systems/
+    _section.json        # title "Systems"
+    hosts.html           # systems/hosts, on the first tab
+    network/
+      _section.json      # title "Network"
+      latency.html       # systems/network/latency
+      latency.5m.py
+      assets/latency/data.json
+```
+
+A section's own panels appear on its first tab, named after the section; sub-sections follow in their order. A section with only sub-sections opens its first one. Use sub-sections when a topic has distinct views worth separate pages, not to nest a single panel.
+
+Folder and file names are 1–64 lowercase letters, digits, or hyphens. Panel IDs join them with `/`: `overview/energy`, `systems/network/latency`. Duplicate filename stems across formats are invalid. Hidden and temporary files are ignored. Visible unsupported files/directories produce diagnostics. `assets/` never creates panels.
 
 Own one panel document and its asset directory. Publish different panels independently; agree on ownership before overwriting another author's panel. Write only the information the user requested and preserve its original meaning. Source retrieval and upstream actions use the agent's existing tools and authorization. A request to display calendar entries grants no permission to edit them.
 
@@ -43,7 +59,7 @@ An optional `_section.json` controls the tab:
 {"version":1,"title":"Overview","order":10,"accent":"apricot"}
 ```
 
-Only these fields are accepted. Sections sort by order then ID; panels sort by order then ID. No site configuration or per-panel sidecar is needed.
+Only these fields are accepted, and the same file works in a sub-section folder. Sections and sub-sections sort by order then ID; panels sort by order then ID. No site configuration or per-panel sidecar is needed.
 
 ## Fit the allocated width
 
@@ -64,6 +80,8 @@ For genuinely two-dimensional tables, use a labelled, keyboard-accessible local 
 The canvas is black. Use warm apricot/orange for primary structure, lilac for supporting structure, and blue/peach for data. The toolkit supplies CSS palette variables `--lcars-background`, `--lcars-text`, `--lcars-muted`, `--lcars-apricot`, `--lcars-orange`, `--lcars-lilac`, `--lcars-blue`, `--lcars-peach`, `--lcars-critical`, and `--lcars-ink`. Prefer these over duplicating hex values.
 
 Use locally bundled Antonio for short labels, headings, and key values through `--lcars-label-font`; use the system sans-serif body stack for prose. Body text begins at 16px with 1.5 line height; labels at 18px; headings around 24–32px; values around 36–56px. Use 8/16/24px spacing, readable muted text, and black text on pastel bands. Keep titles selectable. Avoid gradients, glass, shadows, glow, starfields, fake telemetry, serial-number decoration, or all-uppercase paragraphs.
+
+Keep the interior lean. The frame already draws the panel title in capitals and the section title above it, so do not repeat or restate either inside the panel. Skip eyebrows, kicker labels, taglines, and sub-headings; a value needs a label only when the title does not already say what it is. Add a sub-heading only to separate genuinely distinct groups in a long panel, and never as the first element. Markdown panels follow the same rule: the first H1 becomes the title, so avoid `##` headings unless the content really has separate parts. Do not add your own `Updated …`, timestamp, or "demo"/"fixture" captions; the frame shows the time, and the title can carry a qualifier when one is needed.
 
 Write health states explicitly: “Normal”, “Warning”, “Critical”, or “Unavailable”. Colour alone is insufficient; accent colour identifies a section, not its health. Chart series need labels or dash patterns as well as colour. Images need descriptive alt text and charts need descriptions or data access. Keep visible focus and 44px touch targets. Panels are silent.
 
@@ -96,11 +114,33 @@ LCARS.onData(({data, missing}) => {
 
 `onState(callback)` delivers visibility, motion preference, capture state, and display clock. Stop optional animation while hidden or motion is off. Initial rendering must work without animation ticks. `deferReady()` called during initial execution returns a completion function for asynchronous setup; call it when setup finishes. Fonts, images, DOM readiness, and initial data are already handled. `onCapture(callback)` lets a diagram draw a still using the frozen display clock; returned promises are awaited. Capture does not record animation or offer timeline controls.
 
-Use local classic scripts and styles in the owned asset directory. No CDN, network fetching, dynamic imports, workers, nested frames, form submission, popup, download, or top navigation. The sandbox intentionally omits same-origin access. Components see only their own data; do not reach into the shell or other frames. Keep useful HTTP(S) source links in Markdown or `lcars:sourceUrl` for host rendering.
+Use local classic scripts and styles in the owned asset directory. No CDN, network fetching, dynamic imports, workers, nested frames, form submission, popup windows (use `LCARS.openModal`), download, or top navigation. The sandbox intentionally omits same-origin access. Components see only their own data; do not reach into the shell or other frames. Keep useful HTTP(S) source links in Markdown or `lcars:sourceUrl` for host rendering.
 
 Passive SVG resources permit these elements: `svg`, `g`, `path`, `rect`, `circle`, `ellipse`, `line`, `polyline`, `polygon`, `text`, `tspan`, `title`, `desc`, `defs`, `clipPath`, `mask`, `linearGradient`, `radialGradient`, and `stop`.
 
 Allowed attributes are `xmlns`, `viewBox`, `width`, `height`, `x`, `y`, `x1`, `x2`, `y1`, `y2`, `cx`, `cy`, `r`, `rx`, `ry`, `d`, `points`, `fill`, `fill-opacity`, `fill-rule`, `stroke`, `stroke-width`, `stroke-opacity`, `stroke-linecap`, `stroke-linejoin`, `stroke-dasharray`, `opacity`, `transform`, `font-family`, `font-size`, `font-weight`, `text-anchor`, `dominant-baseline`, `id`, `class`, `role`, `aria-label`, `aria-labelledby`, `preserveAspectRatio`, `offset`, `stop-color`, `stop-opacity`, `gradientUnits`, `gradientTransform`, `clip-path`, and `mask`. `url(...)` references must target local `#ids`. Other elements/attributes, scripts, event handlers, animation, external references, directives, and active embedded content are rejected. Symlinks and paths outside the owned asset directory are refused.
+
+## Show times and details
+
+Write times with the toolkit's relative-time element instead of formatting your own "3 hours ago" text:
+
+```html
+<p>Last backup <lcars-time datetime="2026-11-07T02:14:00Z" label="Last backup"></lcars-time></p>
+```
+
+It renders a compact `now`, `5m`, `2h`, `3d` or `in 3d`, follows the display clock (so captures stay frozen and consistent with the frame), refreshes itself, and opens a modal with the exact time in the viewer's timezone when pressed. `label` names the time in that modal and for screen readers. An invalid or missing `datetime` shows `—`; never substitute an invented time. Set the attribute from `onData` when the time comes from live data. The frame's own update time works the same way, so do not repeat it inside the panel.
+
+For detail that does not fit the panel, open a host modal from a user action:
+
+```js
+row.addEventListener('click', () => LCARS.openModal({
+  title: 'vault',
+  body: 'Storage host.\n\nA blank line starts a new paragraph.',
+  fields: [{label: 'Disk', value: '86%'}, {label: 'Last backup', time: data.lastBackup}]
+}));
+```
+
+The modal is drawn by the host in the panel's accent colour, above the whole page, with keyboard focus, Escape and a Close button. Content is text only: `title` (required, up to 200 characters), `body` (up to 4,000; blank lines separate paragraphs) and up to 40 `fields`, each a `label` with either a string/number `value` or an RFC3339 `time` (shown exact and relative). Markup is displayed literally. `openModal` returns a promise that resolves `true` after the modal closes and focus returns to the element that opened it, or `false` if the host refused: modals open only in direct response to a click or key press in that panel, one at a time, and never during capture. Keep essential information visible in the panel; a modal is for secondary detail.
 
 ## Schedule an adjacent data script
 
@@ -174,13 +214,13 @@ Limits: 200 panels; HTML 1 MiB; Markdown, text, and data envelopes 256 KiB each;
 
 ## Read publication and observation times correctly
 
-Every frame shows `Updated …` for the acknowledged displayed document/resources/data revision and an accessible exact-time/source disclosure. Unchanged bytes, polling, pending candidates, and rejected edits do not advance it. File times seed the value at startup; they are publishing evidence, not an audit record.
+Every frame shows one compact relative time (`now`, `5m`, `2h`, `3d`); pressing it opens a modal listing exact times and their source. The section heading shows the latest panel's time the same way. When the producer supplied an observation time, the frame shows that; otherwise it shows the publication time of the acknowledged displayed document/resources/data revision. Unchanged bytes, polling, pending candidates, and rejected edits do not advance publication time. File times seed the value at startup; they are publishing evidence, not an audit record.
 
-`Data observed …` uses the producer's observation time. If no observation time was supplied it stays unknown; do not invent one. An elapsed stale threshold adds a visible `Stale` label. Updating a title does not freshen old measurements. A missing live file shows data unavailable. Connection status and last successful check in the shell footer do not describe content freshness.
+Observation time comes only from the producer. If none was supplied it stays unknown; do not invent one. An elapsed stale threshold adds a visible `Stale` label. Updating a title does not freshen old measurements. A missing live file shows data unavailable. Connection status and last successful check in the shell footer do not describe content freshness.
 
 ## Validate, capture, inspect, revise
 
-For a directory-wide check, `lcars snapshot --data "$LCARS_DATA" --out ./captures` validates first, starts a temporary loopback server, captures every section at desktop/tablet/mobile/320px widths, and closes the server. It requires an installed browser but no existing service. Inspect those PNGs before publishing or refining further.
+For a directory-wide check, `lcars snapshot --data "$LCARS_DATA" --out ./captures` validates first, starts a temporary loopback server, captures every section and sub-section (`systems_network-desktop.png`) at desktop/tablet/mobile/320px widths, and closes the server. It requires an installed browser but no existing service. Inspect those PNGs before publishing or refining further.
 
 Run validation after publishing. It prints document/data SHA-256 values and actionable diagnostics, returns nonzero for errors, and does not execute scripts or judge composition.
 

@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Today</title>
+  <meta name="lcars:order" content="30">
+  <meta name="lcars:accent" content="apricot">
+  <style>
+    ol { list-style: none; margin: 0; padding: 0; display: grid; gap: .25rem; }
+    li { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr); gap: .25rem 1rem; padding: .5rem 0 .5rem .75rem; border-left: 4px solid #3a3440; }
+    li + li { margin-top: 0; }
+    .time { font: 500 1.25rem/1.3 var(--lcars-label-font); color: var(--lcars-apricot); }
+    .place { grid-column: 2; color: var(--lcars-muted); font-size: .875rem; }
+    .tag { font: 500 .875rem/1 var(--lcars-label-font); text-transform: uppercase; letter-spacing: .04em; padding: .2rem .5rem; margin-left: .5rem; border-radius: 0 .75rem .75rem 0; color: var(--lcars-ink); background: var(--lcars-apricot); vertical-align: .1em; }
+    .past { opacity: .55; }
+    .all-day { border-left-style: dashed; border-left-color: var(--lcars-apricot); }
+    .all-day .time { font-size: 1rem; color: var(--lcars-muted); }
+    .now { border-left-color: var(--lcars-orange); }
+    .next { border-left-color: var(--lcars-apricot); }
+    .empty { color: var(--lcars-muted); margin: 0; }
+  </style>
+</head>
+<body>
+  <ol id="events" aria-label="Today's appointments"></ol>
+  <p class="empty" id="empty" hidden>Nothing scheduled.</p>
+  <script>
+    let schedule = [], clock = new Date().toISOString();
+    const minutes = hhmm => { const [h, m] = String(hhmm).split(':').map(Number); return h * 60 + m; };
+    function render() {
+      const date = new Date(clock), now = date.getHours() * 60 + date.getMinutes(), today = (date.getDay() + 6) % 7;
+      const todays = schedule.filter(event => event.day === today);
+      const events = [...todays.filter(event => event.allDay), ...todays.filter(event => !event.allDay).sort((a, b) => minutes(a.start) - minutes(b.start))];
+      const list = document.getElementById('events');
+      list.replaceChildren();
+      let nextMarked = false;
+      for (const event of events) {
+        const start = event.allDay ? 0 : minutes(event.start), end = event.allDay ? 1440 : minutes(event.end);
+        const item = document.createElement('li');
+        const time = document.createElement('span'); time.className = 'time'; time.textContent = event.allDay ? 'All day' : event.start;
+        const title = document.createElement('span'); title.textContent = event.title;
+        let tag = '';
+        if (end <= now) item.className = 'past';
+        else if (event.allDay) item.className = 'all-day';
+        else if (start <= now) { item.className = 'now'; tag = 'Now'; }
+        else if (!nextMarked) { item.className = 'next'; tag = 'Next'; nextMarked = true; }
+        if (tag) { const badge = document.createElement('span'); badge.className = 'tag'; badge.textContent = tag; title.append(badge); }
+        item.append(time, title);
+        const detail = [event.place, event.allDay ? '' : `until ${event.end}`].filter(Boolean).join(' · ');
+        const place = document.createElement('span'); place.className = 'place'; place.textContent = detail;
+        item.append(place);
+        list.append(item);
+      }
+      document.getElementById('empty').hidden = events.length > 0;
+    }
+    LCARS.onState(state => { clock = state.clock; render(); });
+    LCARS.onData(({data, missing}) => {
+      schedule = !missing && Array.isArray(data?.events) ? data.events : [];
+      render();
+    });
+  </script>
+</body>
+</html>

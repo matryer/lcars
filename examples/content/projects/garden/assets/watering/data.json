@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "data": {
+    "beds": [
+      {"name": "Tomatoes", "moisture": 41, "nextWateringMinutes": 190},
+      {"name": "Herbs", "moisture": 26, "nextWateringMinutes": 35},
+      {"name": "Salad", "moisture": 48, "nextWateringMinutes": 600},
+      {"name": "Fruit cage", "moisture": 37, "nextWateringMinutes": 1500}
+    ]
+  }
+}

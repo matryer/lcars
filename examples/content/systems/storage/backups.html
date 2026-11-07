@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Backups</title>
+  <meta name="lcars:order" content="20">
+  <meta name="lcars:accent" content="orange">
+  <style>
+    ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .75rem; }
+    li + li { margin-top: 0; }
+    li { border-left: 4px solid var(--lcars-blue); padding-left: .75rem; }
+    li.warning { border-left-color: var(--lcars-orange); }
+    li.critical { border-left-color: var(--lcars-critical); }
+    p { margin: 0; }
+    .job { font: 500 1.125rem/1.3 var(--lcars-label-font); letter-spacing: .03em; }
+    .state { font: 500 .9375rem/1.3 var(--lcars-label-font); text-transform: uppercase; letter-spacing: .04em; }
+    .warning .state { color: var(--lcars-orange); } .critical .state { color: var(--lcars-critical); }
+    .detail, .when { color: var(--lcars-muted); font-size: .875rem; }
+  </style>
+</head>
+<body>
+  <ul id="jobs"></ul>
+  <script>
+    let clock = new Date().toISOString();
+    LCARS.onState(state => { clock = state.clock; });
+    LCARS.onData(({data, missing}) => {
+      const jobs = !missing && Array.isArray(data?.jobs) ? data.jobs : [];
+      document.getElementById('jobs').replaceChildren(...jobs.map(job => {
+        const li = document.createElement('li'); li.className = job.state.toLowerCase();
+        li.innerHTML = '<p class="job"></p><p class="state"></p><p class="detail"></p><p class="when">Last success <lcars-time label="Last success"></lcars-time></p>';
+        li.querySelector('.job').textContent = job.name;
+        li.querySelector('.state').textContent = job.state;
+        li.querySelector('.detail').textContent = job.detail;
+        // Demo fixture: ages keep the example fresh. Real producers should write RFC3339 times.
+        const success = Number.isFinite(job.lastSuccessMinutesAgo) ? new Date(Date.parse(clock) - job.lastSuccessMinutesAgo * 60000).toISOString() : '';
+        li.querySelector('lcars-time').setAttribute('datetime', success);
+        return li;
+      }));
+      if (!jobs.length) document.getElementById('jobs').textContent = 'Unavailable';
+    });
+  </script>
+</body>
+</html>

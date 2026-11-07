@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "data": {
+    "services": [
+      {"name": "DNS", "host": "pi-shed", "state": "Normal"},
+      {"name": "Reverse proxy", "host": "atlas", "state": "Normal"},
+      {"name": "Photo sync", "host": "vault", "state": "Warning", "note": "Retrying, 3 failures"},
+      {"name": "Home automation", "host": "pi-shed", "state": "Normal"},
+      {"name": "Media library", "host": "lumen", "state": "Normal"},
+      {"name": "Backup agent", "host": "vault", "state": "Normal"},
+      {"name": "Git mirror", "host": "vault", "state": "Normal"},
+      {"name": "Metrics", "host": "atlas", "state": "Normal"},
+      {"name": "VPN", "host": "pi-shed", "state": "Normal"}
+    ]
+  }
+}

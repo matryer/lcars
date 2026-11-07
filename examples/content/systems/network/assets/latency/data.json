@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "data": {
+    "targets": [
+      {"name": "Router", "p50": 1, "p95": 2, "loss": 0, "state": "Normal"},
+      {"name": "ISP gateway", "p50": 9, "p95": 14, "loss": 0, "state": "Normal"},
+      {"name": "DNS resolver", "p50": 12, "p95": 61, "loss": 0.4, "state": "Warning"},
+      {"name": "Cloud region", "p50": 24, "p95": 31, "loss": 0, "state": "Normal"}
+    ]
+  }
+}

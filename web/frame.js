@@ -1,4 +1,4 @@
-/* LCARS component bridge, contract v1. No host actions are exposed. */
+/* LCARS component bridge, contract v1. The only host action is a user-initiated, text-only modal. */
 (() => {
   'use strict';
   const nonce = new URL(location.href).searchParams.get('nonce');
@@ -6,6 +6,7 @@
   let initialized = false, stopped = false, ready = false, currentData, pendingData, pumping = false;
   let state = {visible: false, motion: false, capture: false, clock: new Date().toISOString()};
   let domReady = false, deferrals = 0, finishDeferrals = [];
+  const modalWaiters = new Map(); let modalCount = 0;
   const post = (type, values = {}) => parent.postMessage({v: 1, nonce, type, ...values}, '*');
   const textError = error => String(error?.message || error || 'Unknown rendering error').slice(0, 1500);
   function fail(error) { if (stopped) return; stopped = true; post('error', {error: textError(error)}); }
@@ -58,7 +59,71 @@
     state = {visible: !!next.visible, motion: !!next.motion, capture: !!next.capture, clock: typeof next.clock === 'string' ? next.clock : state.clock};
     document.documentElement.dataset.motion = state.motion ? 'on' : 'off';
     for (const callback of [...stateListeners]) { try { callback({...state}); } catch (error) { fail(error); } }
+    for (const element of document.querySelectorAll('lcars-time')) element.render?.();
   }
+  const clip = (value, limit) => String(value).slice(0, limit);
+  function modalSpec(options) {
+    if (!options || typeof options !== 'object') throw new TypeError('openModal needs an options object');
+    const title = typeof options.title === 'string' ? options.title.trim() : '';
+    if (!title) throw new TypeError('openModal needs a title');
+    if (options.body !== undefined && typeof options.body !== 'string') throw new TypeError('openModal body must be a string');
+    if (options.fields !== undefined && !Array.isArray(options.fields)) throw new TypeError('openModal fields must be an array');
+    const fields = (options.fields || []).slice(0, 40).map(field => {
+      if (!field || typeof field.label !== 'string' || !field.label.trim()) throw new TypeError('Each modal field needs a label');
+      if (field.time !== undefined) {
+        if (!Number.isFinite(Date.parse(field.time))) throw new TypeError(`Modal field "${field.label}" has an invalid time`);
+        return {label: clip(field.label, 100), time: new Date(field.time).toISOString()};
+      }
+      if (typeof field.value !== 'string' && typeof field.value !== 'number') throw new TypeError(`Modal field "${field.label}" needs a value or time`);
+      return {label: clip(field.label, 100), value: clip(field.value, 500)};
+    });
+    return {title: clip(title, 200), body: clip(options.body || '', 4000), fields};
+  }
+  function openModal(options) {
+    const modal = modalSpec(options);
+    if (!initialized || stopped || (navigator.userActivation && !navigator.userActivation.isActive)) return Promise.resolve(false);
+    const id = String(++modalCount), returnFocus = document.activeElement;
+    post('modal', {id, modal});
+    return new Promise(resolve => modalWaiters.set(id, opened => {
+      if (opened && returnFocus && returnFocus !== document.body) returnFocus.focus?.({preventScroll: true});
+      resolve(opened);
+    }));
+  }
+  const relativeFormat = new Intl.RelativeTimeFormat(undefined, {numeric: 'auto'});
+  const exactFormat = new Intl.DateTimeFormat(undefined, {dateStyle: 'full', timeStyle: 'long'});
+  function relativeParts(ms) {
+    const delta = ms - Date.parse(state.clock), size = Math.abs(delta);
+    const [unit, step, letter] = size < 3600000 ? ['minute', 60000, 'm'] : size < 86400000 ? ['hour', 3600000, 'h'] : ['day', 86400000, 'd'];
+    const count = Math.max(1, Math.floor(size / step));
+    return {short: delta > 0 ? `in ${count}${letter}` : `${count}${letter}`, long: relativeFormat.format(delta > 0 ? count : -count, unit)};
+  }
+  class RelativeTime extends HTMLElement {
+    static get observedAttributes() { return ['datetime', 'label']; }
+    connectedCallback() { this.render(); }
+    attributeChangedCallback() { if (this.isConnected) this.render(); }
+    render() {
+      let button = this.firstElementChild;
+      if (!button || button.localName !== 'button' || this.childElementCount !== 1) {
+        button = document.createElement('button'); button.type = 'button'; button.setAttribute('aria-haspopup', 'dialog');
+        button.addEventListener('click', () => this.open());
+        this.replaceChildren(button);
+      }
+      const ms = Date.parse(this.getAttribute('datetime'));
+      button.disabled = !Number.isFinite(ms);
+      if (button.disabled) { button.textContent = '—'; button.removeAttribute('title'); button.setAttribute('aria-label', 'Time unknown'); return; }
+      const parts = relativeParts(ms), exact = exactFormat.format(new Date(ms)), label = this.getAttribute('label');
+      if (button.textContent !== parts.short) button.textContent = parts.short;
+      button.title = exact;
+      button.setAttribute('aria-label', `${label ? label + ': ' : ''}${parts.long}. Show exact time`);
+    }
+    open() {
+      const value = this.getAttribute('datetime');
+      if (!Number.isFinite(Date.parse(value))) return;
+      const label = this.getAttribute('label') || 'Time';
+      openModal({title: label, fields: [{label, time: value}]}).catch(fail);
+    }
+  }
+  if (!customElements.get('lcars-time')) customElements.define('lcars-time', RelativeTime);
   window.LCARS = Object.freeze({
     version: 1,
     onData(callback) {
@@ -78,6 +143,7 @@
       captureListeners.add(callback);
       return () => captureListeners.delete(callback);
     },
+    openModal,
     deferReady() {
       if (ready) throw new Error('deferReady must be called during initialization');
       deferrals++; let done = false;
@@ -107,7 +173,12 @@
   window.addEventListener('message', async event => {
     const message = event.data;
     if (event.source !== parent || !message || message.v !== 1 || message.nonce !== nonce || stopped) return;
-    if (!['init', 'data', 'state', 'capture'].includes(message.type)) return;
+    if (!['init', 'data', 'state', 'capture', 'modalClosed'].includes(message.type)) return;
+    if (message.type === 'modalClosed') {
+      const done = modalWaiters.get(message.id);
+      if (done) { modalWaiters.delete(message.id); done(message.opened !== false); }
+      return;
+    }
     if (message.type === 'init' || message.type === 'data') {
       const value = message.data;
       if (!value || typeof value.hash !== 'string' || value.hash.length > 64 || JSON.stringify(value).length > 300000) return;

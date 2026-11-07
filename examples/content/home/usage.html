@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Energy this week</title>
+  <meta name="lcars:size" content="wide">
+  <meta name="lcars:order" content="30">
+  <meta name="lcars:accent" content="blue">
+  <style>
+    .totals { display: flex; flex-wrap: wrap; gap: .5rem 2rem; margin-bottom: 1rem; }
+    .totals p { margin: 0; }
+    .total { font: 500 2rem/1.1 var(--lcars-label-font); }
+    .solar { color: var(--lcars-apricot); }
+    .grid { color: var(--lcars-lilac); }
+    .key { color: var(--lcars-muted); font-size: .875rem; }
+    .swatch { display: inline-block; width: .75rem; height: .75rem; margin-right: .375rem; vertical-align: -.05em; }
+    svg { width: 100%; height: auto; overflow: visible; }
+    svg text { fill: var(--lcars-muted); font: 12px var(--lcars-label-font); letter-spacing: .04em; }
+    .bar-solar { fill: var(--lcars-apricot); } .bar-grid { fill: var(--lcars-lilac); }
+    details { margin-top: .75rem; }
+    summary { cursor: pointer; padding: .5rem 0; }
+    td, th { text-align: right; } td:first-child, th:first-child { text-align: left; }
+  </style>
+</head>
+<body>
+  <div class="totals">
+    <div><p class="total solar" id="solar-total">–</p><p class="key"><span class="swatch" style="background:var(--lcars-apricot)"></span>Solar</p></div>
+    <div><p class="total grid" id="grid-total">–</p><p class="key"><span class="swatch" style="background:var(--lcars-lilac)"></span>Grid</p></div>
+  </div>
+  <svg id="chart" role="img" aria-labelledby="chart-desc"><desc id="chart-desc">Daily household energy, solar stacked below grid import.</desc></svg>
+  <details><summary>Daily figures</summary>
+    <div class="lcars-scroll" role="region" aria-label="Daily energy table" tabindex="0"><table><thead><tr><th>Day</th><th>Solar kWh</th><th>Grid kWh</th><th>Total kWh</th></tr></thead><tbody id="rows"></tbody></table></div>
+  </details>
+  <script>
+    const ns = 'http://www.w3.org/2000/svg';
+    let days = [];
+    const el = (name, attrs, text) => { const node = document.createElementNS(ns, name); for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v); if (text != null) node.textContent = text; return node; };
+    const fmt = value => Number.isFinite(value) ? value.toFixed(1) : '–';
+    function draw() {
+      const svg = document.getElementById('chart');
+      const width = Math.max(240, svg.clientWidth || document.body.clientWidth), height = width < 420 ? 160 : 200;
+      const top = 8, bottom = 24, left = 28;
+      svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+      [...svg.querySelectorAll(':not(desc)')].forEach(node => node.remove());
+      if (!days.length) return;
+      const max = Math.ceil(Math.max(...days.map(d => d.solar + d.grid)) / 5) * 5 || 5;
+      const plot = height - top - bottom, slot = (width - left) / days.length, bar = Math.min(48, slot * .6);
+      for (let v = 0; v <= max; v += max / (width < 420 ? 2 : 4)) {
+        const y = top + plot - v / max * plot;
+        svg.append(el('line', {x1: left, x2: width, y1: y, y2: y, stroke: '#3a3440', 'stroke-width': 1}));
+        svg.append(el('text', {x: 0, y: y + 4}, Math.round(v)));
+      }
+      days.forEach((d, i) => {
+        const x = left + i * slot + (slot - bar) / 2;
+        const solarH = d.solar / max * plot, gridH = d.grid / max * plot;
+        svg.append(el('rect', {x, width: bar, y: top + plot - solarH, height: solarH, class: 'bar-solar'}));
+        svg.append(el('rect', {x, width: bar, y: top + plot - solarH - gridH, height: gridH, class: 'bar-grid'}));
+        svg.append(el('text', {x: x + bar / 2, y: height - 6, 'text-anchor': 'middle'}, width < 360 ? d.day[0] : d.day));
+      });
+    }
+    LCARS.onData(({data, missing}) => {
+      days = !missing && Array.isArray(data?.days) ? data.days.filter(d => Number.isFinite(d.solar) && Number.isFinite(d.grid)) : [];
+      const sum = key => days.reduce((total, d) => total + d[key], 0);
+      document.getElementById('solar-total').textContent = days.length ? `${fmt(sum('solar'))} kWh` : 'Unavailable';
+      document.getElementById('grid-total').textContent = days.length ? `${fmt(sum('grid'))} kWh` : 'Unavailable';
+      document.getElementById('rows').replaceChildren(...days.map(d => {
+        const tr = document.createElement('tr');
+        for (const value of [d.day, fmt(d.solar), fmt(d.grid), fmt(d.solar + d.grid)]) { const td = document.createElement('td'); td.textContent = value; tr.append(td); }
+        return tr;
+      }));
+      draw();
+    });
+    new ResizeObserver(() => requestAnimationFrame(draw)).observe(document.body);
+  </script>
+</body>
+</html>

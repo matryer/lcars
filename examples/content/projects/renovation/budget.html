@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Budget</title>
+  <meta name="lcars:size" content="wide">
+  <meta name="lcars:order" content="10">
+  <meta name="lcars:accent" content="peach">
+  <style>
+    .total { display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem 1rem; margin: 0 0 1rem; }
+    .spent { font: 500 2.5rem/1 var(--lcars-label-font); color: var(--lcars-peach); }
+    .of { color: var(--lcars-muted); }
+    ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .875rem; }
+    li + li { margin-top: 0; }
+    li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .25rem 1rem; }
+    li button { justify-self: start; min-height: 0; padding: 0; background: none; color: var(--lcars-text); font: inherit; text-decoration: underline dotted; text-decoration-thickness: 1px; text-underline-offset: .3em; }
+    .bar { grid-column: 1 / -1; height: .625rem; background: #25212b; border-radius: 0 .3rem .3rem 0; overflow: hidden; }
+    .bar span { display: block; height: 100%; background: var(--lcars-peach); border-radius: inherit; }
+    .over .bar span { background: var(--lcars-critical); } .over .amount { color: var(--lcars-critical); }
+  </style>
+</head>
+<body>
+  <p class="total"><span class="spent" id="spent">Unavailable</span><span class="of" id="of"></span></p>
+  <ul id="lines"></ul>
+  <script>
+    const money = value => new Intl.NumberFormat(undefined, {style: 'currency', currency: 'GBP', maximumFractionDigits: 0}).format(value);
+    LCARS.onData(({data, missing}) => {
+      const lines = !missing && Array.isArray(data?.lines) ? data.lines : [];
+      const spent = lines.reduce((sum, line) => sum + line.spent, 0), budget = lines.reduce((sum, line) => sum + line.budget, 0);
+      document.getElementById('spent').textContent = lines.length ? money(spent) : 'Unavailable';
+      document.getElementById('of').textContent = lines.length ? `of ${money(budget)} · ${Math.round(spent / budget * 100)}%` : '';
+      document.getElementById('lines').replaceChildren(...lines.map(line => {
+        const over = line.spent > line.budget;
+        const li = document.createElement('li'); li.className = over ? 'over' : '';
+        const name = document.createElement('button'); name.type = 'button'; name.textContent = line.name; name.setAttribute('aria-haspopup', 'dialog');
+        name.addEventListener('click', () => LCARS.openModal({
+          title: line.name, body: line.note || '',
+          fields: [{label: 'Spent', value: money(line.spent)}, {label: 'Budget', value: money(line.budget)}, {label: 'State', value: over ? `Warning · ${money(line.spent - line.budget)} over` : 'Normal'}]
+        }));
+        const amount = document.createElement('span'); amount.className = 'amount'; amount.textContent = `${money(line.spent)} / ${money(line.budget)}`;
+        const bar = document.createElement('span'); bar.className = 'bar'; bar.setAttribute('aria-hidden', 'true');
+        const fill = document.createElement('span'); fill.style.width = `${Math.min(100, line.spent / line.budget * 100)}%`; bar.append(fill);
+        li.append(name, amount, bar);
+        return li;
+      }));
+    });
+  </script>
+</body>
+</html>

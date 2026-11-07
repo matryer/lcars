@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Needs attention</title>
+  <meta name="lcars:order" content="40">
+  <meta name="lcars:accent" content="orange">
+  <style>
+    ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .75rem; }
+    li + li { margin-top: 0; }
+    li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .125rem .75rem; align-items: baseline; }
+    .state { font: 500 1rem/1 var(--lcars-label-font); text-transform: uppercase; letter-spacing: .04em; padding: .35rem .6rem; min-width: 5.5rem; text-align: center; color: var(--lcars-ink); background: var(--lcars-apricot); border-radius: 0 .75rem .75rem 0; }
+    .state.critical { background: var(--lcars-critical); }
+    .where { grid-column: 2; color: var(--lcars-muted); font-size: .875rem; }
+    .clear { margin: 0; color: var(--lcars-muted); }
+  </style>
+</head>
+<body>
+  <ul id="items"></ul>
+  <p class="clear" id="clear" hidden>Normal · nothing needs attention.</p>
+  <script>
+    const rank = {Critical: 0, Warning: 1};
+    LCARS.onData(({data, missing}) => {
+      const items = !missing && Array.isArray(data?.items) ? [...data.items].sort((a, b) => (rank[a.state] ?? 2) - (rank[b.state] ?? 2)) : [];
+      const list = document.getElementById('items');
+      list.replaceChildren(...items.map(item => {
+        const li = document.createElement('li');
+        const state = document.createElement('span'); state.className = 'state' + (item.state === 'Critical' ? ' critical' : ''); state.textContent = item.state;
+        const text = document.createElement('span'); text.textContent = item.title;
+        const where = document.createElement('span'); where.className = 'where'; where.textContent = item.where;
+        li.append(state, text, where);
+        return li;
+      }));
+      const clear = document.getElementById('clear');
+      clear.hidden = items.length > 0;
+      clear.textContent = missing ? 'Unavailable' : 'Normal · nothing needs attention.';
+    });
+  </script>
+</body>
+</html>

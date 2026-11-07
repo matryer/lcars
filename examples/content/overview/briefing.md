@@ -1,14 +1,9 @@
 # Briefing
 
-This is a **demo canvas**. The household readings are illustrative fixtures, not measurements from your home.
+Good morning. This is a **demo canvas**: every reading, host, appointment and note here is made up.
 
-## Publish your first panel
+- Four things need attention, led by last night's failed offsite backup.
+- Dentist on Friday at 15:00, then Lisbon for the weekend.
+- Solar covered about two-thirds of household demand this week.
 
-1. Choose an owned section and panel path.
-2. Write Markdown, text, or HTML to a hidden temporary file.
-3. Rename it into place and run `lcars validate`.
-4. Capture desktop and mobile layouts, inspect, and refine.
-
-HTML panels receive live data through `LCARS.onData`. Change the energy fixture's data file to see the reading update while its disclosure stays open.
-
-The frame distinguishes publication time from observation time. An unknown observation time is more useful than an invented fresh reading.
+HTML panels receive live data through `LCARS.onData`. Edit any `assets/*/data.json` file and the panel updates in place, keeping open disclosures and sort order.

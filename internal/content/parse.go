@@ -24,6 +24,39 @@ var palette = map[string]bool{"apricot": true, "orange": true, "lilac": true, "b
 var resourceTypes = map[string]string{".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".svg": "image/svg+xml", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".json": "application/json", ".woff2": "font/woff2", ".ttf": "font/ttf"}
 
 func validID(s string) bool { return idPattern.MatchString(s) }
+
+// ComponentSegment encodes a panel ID as one URL path segment, so a panel's
+// relative asset references resolve beneath it at any section depth. "~"
+// cannot appear in IDs.
+func ComponentSegment(id string) string { return strings.ReplaceAll(id, "/", "~") }
+
+// PanelIDFromSegment reverses ComponentSegment, rejecting malformed IDs.
+func PanelIDFromSegment(segment string) (string, bool) {
+	parts := strings.Split(segment, "~")
+	if len(parts) < 2 || len(parts) > 3 {
+		return "", false
+	}
+	for _, part := range parts {
+		if !validID(part) {
+			return "", false
+		}
+	}
+	return strings.Join(parts, "/"), true
+}
+
+// ValidTabID reports whether id names a section or a one-level sub-section.
+func ValidTabID(id string) bool {
+	parts := strings.Split(id, "/")
+	if len(parts) > 2 {
+		return false
+	}
+	for _, part := range parts {
+		if !validID(part) {
+			return false
+		}
+	}
+	return true
+}
 func label(s string) string { return strings.ReplaceAll(s, "-", " ") }
 func readLimited(r io.Reader, n int) ([]byte, error) {
 	b, e := io.ReadAll(io.LimitReader(r, int64(n+1)))
@@ -87,10 +120,9 @@ func each(n *html.Node, f func(*html.Node) error) error {
 	return nil
 }
 func parsePanel(id, filename string, raw []byte, modified time.Time) (accepted, error) {
-	parts := strings.Split(id, "/")
-	stem := parts[1]
+	tab, stem := splitPanelID(id)
 	kind := strings.TrimPrefix(filepath.Ext(filename), ".")
-	p := Panel{ID: id, Tab: parts[0], Title: label(stem), Kind: kind, Size: "normal", Accent: "lilac", Order: 100, DocHash: Hash(raw), Diagnostics: []string{}, Data: Data{Hash: "missing", Missing: true}}
+	p := Panel{ID: id, Tab: tab, Title: label(stem), Kind: kind, Size: "normal", Accent: "lilac", Order: 100, DocHash: Hash(raw), Diagnostics: []string{}, Data: Data{Hash: "missing", Missing: true}}
 	assets, mt, e := snapshotAssets(filepath.Dir(filename), stem)
 	if e != nil {
 		return accepted{}, e
@@ -227,7 +259,7 @@ func parsePanel(id, filename string, raw []byte, modified time.Time) (accepted, 
 	bundleHash := Hash([]byte(digest.String()))
 	p.BundleHash = bundleHash
 	p.UpdatedAt = modified
-	p.URL = "/component/" + bundleHash + "/" + id + "/index.html"
+	p.URL = "/component/" + bundleHash + "/" + ComponentSegment(id) + "/index.html"
 	var head, body *html.Node
 	_ = each(doc, func(n *html.Node) error {
 		if n.Type == html.ElementNode && n.Data == "head" {

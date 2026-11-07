@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "data": {
+    "items": [
+      {
+        "state": "Warning",
+        "title": "vault disk is 86% full",
+        "where": "Systems \u00b7 Hosts"
+      },
+      {
+        "state": "Critical",
+        "title": "Offsite backup failed overnight",
+        "where": "Systems \u00b7 Storage"
+      },
+      {
+        "state": "Warning",
+        "title": "Photo sync is retrying",
+        "where": "Systems \u00b7 Services"
+      },
+      {
+        "state": "Warning",
+        "title": "Hallway sensor battery at 12%",
+        "where": "Home \u00b7 Devices"
+      }
+    ]
+  }
+}

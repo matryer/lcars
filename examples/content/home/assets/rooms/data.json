@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "data": {
+    "rooms": [
+      {"name": "Living room", "temp": 21.4, "target": 21, "humidity": 48},
+      {"name": "Kitchen", "temp": 22.1, "target": 20, "humidity": 52},
+      {"name": "Office", "temp": 19.6, "target": 20.5, "humidity": 45},
+      {"name": "Bedroom", "temp": 18.2, "target": 18, "humidity": 50},
+      {"name": "Bathroom", "temp": 22.8, "target": 22, "humidity": 64}
+    ]
+  }
+}

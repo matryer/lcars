@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "data": {
+    "devices": [
+      {"name": "Front door", "state": "Normal", "status": "Locked"},
+      {"name": "Garage door", "state": "Normal", "status": "Closed"},
+      {"name": "Washing machine", "state": "Normal", "status": "Running · 40 min left"},
+      {"name": "Hallway sensor", "state": "Warning", "status": "Battery 12%"},
+      {"name": "Doorbell", "state": "Normal", "status": "Online"},
+      {"name": "Kitchen lights", "state": "Normal", "status": "Off"}
+    ]
+  }
+}

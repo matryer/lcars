@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "data": {
+    "clients": [
+      {"name": "atlas", "band": "5 GHz", "room": "Office", "bars": 4},
+      {"name": "Phone", "band": "5 GHz", "room": "Kitchen", "bars": 3},
+      {"name": "Living room TV", "band": "5 GHz", "room": "Living room", "bars": 3},
+      {"name": "Thermostat", "band": "2.4 GHz", "room": "Hallway", "bars": 2},
+      {"name": "Doorbell", "band": "2.4 GHz", "room": "Front door", "bars": 1},
+      {"name": "Tablet", "band": "5 GHz", "room": "Bedroom", "bars": 2}
+    ]
+  }
+}

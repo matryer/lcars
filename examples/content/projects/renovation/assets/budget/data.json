@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "data": {
+    "lines": [
+      {"name": "Kitchen units", "spent": 4200, "budget": 4500, "note": "Doors arrive next week. Handles still to choose."},
+      {"name": "Worktops", "spent": 1350, "budget": 1200, "note": "Upgraded to the thicker oak after the template visit."},
+      {"name": "Electrics", "spent": 900, "budget": 1400, "note": "Second fix booked for the 18th."},
+      {"name": "Flooring", "spent": 0, "budget": 1600, "note": "Waiting for the units to go in first."},
+      {"name": "Decorating", "spent": 220, "budget": 600, "note": "Samples bought; painting after the flooring."}
+    ]
+  }
+}

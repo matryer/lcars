@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Hosts</title>
+  <meta name="lcars:size" content="full">
+  <meta name="lcars:order" content="10">
+  <meta name="lcars:accent" content="lilac">
+  <style>
+    table { width: 100%; min-width: 640px; }
+    thead th { padding: 0; border-bottom: 2px solid var(--lcars-lilac); }
+    th, td { white-space: nowrap; overflow-wrap: normal; }
+    thead th button { width: 100%; min-height: 44px; text-align: inherit; background: none; color: var(--lcars-lilac); font: 500 1rem/1.2 var(--lcars-label-font); text-transform: uppercase; letter-spacing: .04em; padding: .5rem; }
+    thead th[aria-sort] button::after { content: ' ▲'; } th[aria-sort=descending] button::after { content: ' ▼'; }
+    th.num, td.num { text-align: right; }
+    td { vertical-align: middle; }
+    .host button { min-height: 44px; padding: 0 .5rem 0 0; background: none; color: var(--lcars-text); font: 500 1.125rem/1.2 var(--lcars-label-font); letter-spacing: .03em; text-decoration: underline dotted; text-decoration-thickness: 1px; text-underline-offset: .3em; }
+    .host button:hover { color: var(--lcars-lilac); }
+    .role { color: var(--lcars-muted); }
+    .meter { display: grid; grid-template-columns: 3rem 4rem; gap: .5rem; align-items: center; justify-content: end; }
+    .meter span:last-child { height: .5rem; background: #2a2630; border-radius: 0 .5rem .5rem 0; overflow: hidden; }
+    .meter i { display: block; height: 100%; background: var(--lcars-blue); border-radius: inherit; }
+    .high i { background: var(--lcars-orange); }
+    .state { font: 500 .9375rem/1 var(--lcars-label-font); text-transform: uppercase; letter-spacing: .04em; }
+    .warning { color: var(--lcars-orange); }
+    .lcars-scroll { border-bottom: 0; }
+    .lcars-scroll::after { display: none; }
+    @media (max-width: 680px) { .lcars-scroll::after { display: block; } }
+  </style>
+</head>
+<body>
+  <div class="lcars-scroll" role="region" aria-label="Hosts table" tabindex="0">
+    <table>
+      <thead><tr id="head"></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <script>
+    const columns = [
+      {key: 'name', label: 'Host'}, {key: 'role', label: 'Role'},
+      {key: 'cpu', label: 'CPU', meter: true}, {key: 'memory', label: 'Memory', meter: true}, {key: 'disk', label: 'Disk', meter: true},
+      {key: 'uptimeDays', label: 'Uptime', num: true}, {key: 'state', label: 'State'}
+    ];
+    let hosts = [], sort = {key: 'name', dir: 1}, clock = new Date().toISOString();
+    const percent = value => Number.isFinite(value) ? `${value}%` : 'Unavailable';
+    function details(host) {
+      const fields = [
+        {label: 'Role', value: host.role}, {label: 'State', value: host.note ? `${host.state} · ${host.note}` : host.state},
+        {label: 'CPU', value: percent(host.cpu)}, {label: 'Memory', value: percent(host.memory)}, {label: 'Disk', value: percent(host.disk)}
+      ];
+      if (Number.isFinite(host.uptimeDays)) fields.push({label: 'Up since', time: new Date(Date.parse(clock) - host.uptimeDays * 86400000).toISOString()});
+      LCARS.openModal({title: host.name, body: host.summary || '', fields});
+    }
+    function header() {
+      document.getElementById('head').replaceChildren(...columns.map(column => {
+        const th = document.createElement('th'); th.scope = 'col';
+        if (column.meter || column.num) th.className = 'num';
+        if (sort.key === column.key) th.setAttribute('aria-sort', sort.dir > 0 ? 'ascending' : 'descending');
+        const button = document.createElement('button'); button.type = 'button'; button.textContent = column.label;
+        button.addEventListener('click', () => {
+          sort = sort.key === column.key ? {key: column.key, dir: -sort.dir} : {key: column.key, dir: column.meter || column.num ? -1 : 1};
+          render();
+          document.querySelector(`th:nth-child(${columns.indexOf(column) + 1}) button`).focus();
+        });
+        th.append(button); return th;
+      }));
+    }
+    function render() {
+      header();
+      const sorted = [...hosts].sort((a, b) => {
+        const x = a[sort.key], y = b[sort.key];
+        return (typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y))) * sort.dir;
+      });
+      document.getElementById('rows').replaceChildren(...sorted.map(host => {
+        const tr = document.createElement('tr');
+        for (const column of columns) {
+          const td = document.createElement(column.key === 'name' ? 'th' : 'td');
+          if (column.key === 'name') {
+            td.scope = 'row'; td.className = 'host';
+            const button = document.createElement('button'); button.type = 'button'; button.textContent = host.name;
+            button.setAttribute('aria-haspopup', 'dialog'); button.addEventListener('click', () => details(host));
+            td.append(button);
+          }
+          else if (column.meter) {
+            const value = host[column.key]; td.className = 'num';
+            td.innerHTML = '<span class="meter"><span></span><span><i></i></span></span>';
+            td.querySelector('.meter span').textContent = Number.isFinite(value) ? `${value}%` : '–';
+            td.querySelector('i').style.width = `${Number.isFinite(value) ? value : 0}%`;
+            td.querySelector('.meter').classList.toggle('high', value >= 80);
+          } else if (column.key === 'uptimeDays') { td.className = 'num'; td.textContent = Number.isFinite(host.uptimeDays) ? `${host.uptimeDays}d` : '–'; }
+          else if (column.key === 'state') { td.className = 'state' + (host.state === 'Warning' ? ' warning' : ''); td.textContent = host.note ? `${host.state} · ${host.note}` : host.state; }
+          else { td.className = 'role'; td.textContent = host[column.key]; }
+          tr.append(td);
+        }
+        return tr;
+      }));
+    }
+    LCARS.onState(state => { clock = state.clock; });
+    LCARS.onData(({data, missing}) => { hosts = !missing && Array.isArray(data?.hosts) ? data.hosts : []; render(); });
+  </script>
+</body>
+</html>
