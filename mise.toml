@@ -1,0 +1,18 @@
+[tools]
+go = "1.27.3"
+
+[tasks.build]
+description = "Build the LCARS binary"
+run = "go build -o lcars ./cmd/lcars"
+
+[tasks.test]
+description = "Run race tests and vet"
+run = ["go test -race ./...", "go vet ./..."]
+
+[tasks.bump]
+description = "Bump patch by default; --bump minor or major selects another increment"
+run = "go run ./tools/release --version-only"
+
+[tasks.release]
+description = "Bump patch, check and package; --bump none keeps the current version"
+run = "go run ./tools/release"

@@ -1,12 +1,12 @@
 # LCARS: a simple agent-fed canvas
 
-Status: design only. This is the single v1 plan; no application has been built. Commands and interfaces below are proposed implementation contracts.
+Status: implemented v1. The application, portable authoring skill, demo content, and focused regression tests now live in this repository. `lcars snapshot --data ./content --out ./captures` combines validation and temporary-server desktop, tablet, mobile, and narrow capture. The design and contracts below describe the v1 scope.
 
 ## 1. The app
 
 Build one Go binary that serves a calm, useful, TNG-inspired web interface. Agents write ordinary files; LCARS supplies the shell, layout, shared styling, live refresh, update timestamps, and screenshot tooling.
 
-Folders are tabs. HTML files are interactive panels. Markdown and plain text are prose panels. Agents can make calendars, briefings, diagrams, tables, or charts using ordinary HTML, CSS, JavaScript, SVG, and Canvas. The app has no built-in calendar, chart engine, JSON widget language, model, agent runtime, upstream integrations, or scheduler.
+Folders are tabs. HTML files are interactive panels. Markdown and plain text are prose panels. Agents can make calendars, briefings, diagrams, tables, or charts using ordinary HTML, CSS, JavaScript, SVG, and Canvas. The app has no built-in calendar, chart engine, JSON widget language, model, agent runtime, upstream integrations, or scheduler in the original v1 scope. The extension below adds opt-in scheduled scripts.
 
 The useful loop is: ask an agent for content → write files → validate → inspect desktop and mobile screenshots → revise. Agents use their existing authorized tools to collect information. LCARS displays it; upstream actions such as sending email or changing calendar events remain outside this app.
 
@@ -130,7 +130,7 @@ Keep only the current accepted bundle per panel. Released resource bytes have a 
 
 Limits: 200 panels; 1 MiB per HTML file; 256 KiB per text document or live-data envelope; 10 MiB per resource; 100 MiB total unique current asset bytes. Check size before reading large files. Apply confirmed deletions first, then admit changed panels in bytewise full-ID order against the resulting budget. Reject over-budget candidates without evicting accepted panels. `validate` uses the same validation and cold-start admission rules, reports actionable paths and limits, and exits nonzero for errors. It prints document and live-data SHA-256 hashes for screenshot checks. It does not execute scripts or prove visual quality.
 
-The browser polls state with ETags every two seconds while visible, pauses when hidden, and refreshes on return. Unchanged scans do not change the state revision. Failed requests retain content, show disconnected status, and back off to at most 30 seconds. Ordinary updates should become visible in roughly three seconds plus rendering/network time. Patch only changed panels; avoid rebuilding navigation or unrelated content.
+The browser subscribes to state revisions through SSE and fetches current state with ETags. It pauses while hidden and refreshes on reconnect or return. Unchanged scans do not change the state revision. Failed requests retain content, show disconnected status, and back off to at most 30 seconds; polling is the fallback when SSE is unavailable. External edits retain the one-second scan delay; script publication triggers an immediate scan. Patch only changed panels; avoid rebuilding navigation or unrelated content.
 
 ## 6. HTML and live data
 
@@ -170,7 +170,7 @@ A minimal author script is ordinary JavaScript:
 
 Measure intrinsic content height with ResizeObserver and coalesce reports per frame. Start at 320px, clamp to 80–2400px, and provide an internal scroller with a diagnostic above that limit. Ignore changes under 1px; diagnose oscillation. Components use fluid width and avoid viewport-height rules that feed back into iframe sizing.
 
-Serve HTML in `sandbox="allow-scripts"` frames without same-origin, forms, popups, downloads, or top-navigation privileges. Apply a sandbox CSP to component responses too. Restrict resources to that revision and the toolkit; disable connections, nested frames, and object/embed. Validate paths and resource types; refuse symlinks and traversal. Passive SVG images use a documented allowlist rejecting scripts, animation, and external resources. This is isolation for mostly trusted agent code, not a hostile-code CPU/memory or complete network-containment guarantee.
+Serve HTML in `sandbox="allow-scripts"` frames without same-origin, forms, popups, downloads, or top-navigation privileges. Apply a sandbox CSP to component documents and every asset response. Restrict resources to the server's own origin using `'self'`, never the request Host, so Host-rewriting proxies work; disable connections, nested frames, and object/embed. Validate paths and resource types; refuse symlinks and traversal. Passive SVG images use a documented allowlist rejecting scripts, animation, and external resources. This is isolation for mostly trusted agent code, not a hostile-code CPU/memory or complete network-containment guarantee.
 
 Use a versioned bridge with per-instance nonce, exact window-source checks, validated bounded messages, and stale-message rejection. Its operations are sizing, lifecycle/data delivery, readiness acknowledgements, and diagnostics. It offers no arbitrary host commands. Render source links in Markdown or through an optional HTML `lcars:sourceUrl` metadata field validated as HTTP(S); source links open safely from the host. Components get only their own data.
 
@@ -189,7 +189,7 @@ lcars screenshot --url http://127.0.0.1:8080/s/overview --width 390 --height 844
 lcars screenshot --url http://127.0.0.1:8080/s/overview --panel overview/calendar --out calendar.png
 ```
 
-These loopback URLs are internal diagnostics. Capture the viewport by default or one panel with `--panel`. Optional `--expect-panel-hash` and `--expect-data-hash` require `--panel` and match exact file-byte hashes from validation. A missing data file uses the sentinel `missing`. Wait for the expected accepted state, latch that state in the browser, and stop polling for capture. Require displayed readiness and data acknowledgements, not merely server acceptance. Resource expiry during capture is an error, not a reason to silently substitute a newer revision.
+These loopback URLs are internal diagnostics. Capture the viewport by default or one panel with `--panel`. Optional `--expect-panel-hash` and `--expect-data-hash` require `--panel` and match exact file-byte hashes from validation. A missing data file uses the sentinel `missing`. Wait for the expected accepted state, latch that state in the browser, and stop live updates for capture. Require displayed readiness and data acknowledgements, not merely server acceptance. Resource expiry during capture is an error, not a reason to silently substitute a newer revision.
 
 Freeze the display clock at capture start, turn optional motion off, wait for fonts/images/custom capture callbacks, then settle layout for two animation frames. Use device scale 1 and a 15-second overall deadline. Write a PNG plus a neighbouring JSON report with viewport, capture time, displayed document/bundle/data hashes, browser version, errors, failed resources, and overflow diagnostics. Rendering failures or hash mismatches exit nonzero even if old content remains visible. Inspect the PNG for composition; readiness checks cannot judge design quality. No server endpoint launches browsers and no public screenshot gallery is created.
 
@@ -197,7 +197,7 @@ Use semantic links/buttons, visible focus, 44px touch targets, readable contrast
 
 ## 8. One authoring skill
 
-Ship one portable `lcars-authoring` skill in the repository, alongside the app. It teaches how to create or update content in an existing LCARS canvas; it does not deploy the app, obtain new upstream permissions, or install itself. Agents without skill support can read the same guide directly. No MCP server is needed for v1: existing filesystem/SSH access and the CLI are sufficient.
+Ship one portable `lcars-authoring` skill in the repository, alongside the app. CLI help advertises `lcars skill`, which prints the embedded skill; `--guide` and `--starter` print its supporting files, and `--out DIR` exports the complete portable folder without installing or overwriting an existing installation. It teaches how to create or update content in an existing LCARS canvas; it does not deploy the app, obtain new upstream permissions, or install itself. Agents without skill support can read the same guide directly. No MCP server is needed for v1: existing filesystem/SSH access and the CLI are sufficient.
 
 Keep `SKILL.md` short: when to use it, where to find the guide and starter, and the publish → validate → capture → inspect loop. The canonical detailed guide lives with the skill as a supporting reference, and the app serves those same bytes at `/agent-guide`; do not maintain a second prose copy. Bundle a minimal HTML starter as an asset. Distribute the skill folder with releases for explicit copying into an agent's supported skill directory. Record the compatible app/contract version and keep examples matched to it. Deployment-specific data paths and URLs come from the environment or user, not hard-coded hostnames in the skill.
 
@@ -208,7 +208,7 @@ Use short example briefs rather than a catalogue of built-in widgets. For exampl
 ## 9. Implementation and delivery
 
 ```text
-cmd/lcars/                         # serve, validate, screenshot
+cmd/lcars/                         # serve, validate, screenshot, snapshot, skill, version
 internal/content/                  # parse, validate, scan, accepted snapshots
 internal/server/                   # shell, state, immutable resources
 internal/capture/                  # browser capture
@@ -218,9 +218,11 @@ skills/lcars-authoring/references/guide.md
 skills/lcars-authoring/assets/starter.html
 ```
 
+Keep the app SemVer in `internal/buildinfo/VERSION`. `lcars version --json` and the private `/api/version` endpoint identify the app build separately from authoring contract 1.0 and bridge/schema version 1. `mise run bump` increments the patch by default; `--bump minor` or `--bump major` selects another increment. `mise run release` bumps patch by default, runs checks, and creates local versioned archives, bundled skills, metadata, and checksums. `--bump none` packages the current version. Releases never commit, tag, or publish automatically.
+
 Use Go's standard HTTP/JSON/embed libraries, small browser JavaScript, and maintained HTML/Markdown parsers. No frontend framework, database, queue, plugin engine, or bundler in the host. Escape host text and avoid injecting arbitrary values into `innerHTML`.
 
-Routes: `/`, `/s/{tab}`, `/api/state`, immutable component/asset URLs, `/agent-guide`, and `/healthz`. State includes accepted panel metadata, content, live data, diagnostics, and revision with ETag. Keep content responses private to the user's authenticated deployment; immutable means versioned bytes, not permission to use public shared caches. Bind to loopback by default and deploy behind the user's private authenticated proxy. No upstream fetch service or public multi-user authentication system.
+Routes: `/`, `/s/{tab}`, `/api/state`, `/api/events`, `/api/version`, immutable component/asset URLs, `/toolkit/*`, `/agent-guide`, and `/healthz`. State includes accepted panel metadata, content, live data, diagnostics, and revision with ETag. Keep content responses private to the user's authenticated deployment; immutable means versioned bytes, not permission to use public shared caches. Bind to loopback by default and deploy behind the user's private authenticated proxy. Reject Host names other than `localhost`, IP addresses, and explicit `--allowed-host` values, so DNS-rebinding pages cannot read content. No upstream fetch service or public multi-user authentication system.
 
 When deploying on a tailnet machine, discover its full DNS hostname with `tailscale status --json` and verify reachability before sharing URLs, preserving port/path. On Kitt, maintain the homepage registry in `/home/matryer/code/github.com/matryer/devtools` under its repository instructions. Planning does not launch or register a service.
 
@@ -235,3 +237,50 @@ Acceptance: an agent can create and refine a useful panel without changing app c
 Responsive checks also cover a 320px page viewport and actual component widths around 260px, 360px, and 720px in a browser test fixture. Resize an already-mounted interactive panel to verify reflow without lost state, clipped focus, resize loops, or stale Canvas dimensions. Capture diagnostics inspect horizontal overflow inside frames as well as the shell, distinguishing declared local scroll regions from accidental document overflow. Check long words, large values, wrapped controls, portrait/landscape changes, and touch access; a desktop screenshot alone is not sufficient.
 
 Outside v1: JSON widget components, a built-in calendar, sound, advanced navigation/choreographed transitions, `lcars put`, server rollback history, live/animated/full-page capture, MCP, automatic skill installation, drag-and-drop layout, remote write APIs, upstream connectors, historical storage, and multi-user permissions. These are exclusions, not a backlog commitment.
+
+## Scheduled scripts and immediate updates
+
+Status: implemented with Linux race/browser tests and cross-compilation for Windows/macOS. Native Windows/macOS execution tests remain to be run on those systems. This extension adds an opt-in script runner and replaces normal browser polling with SSE. The existing data envelope and `LCARS.onData()` API stay unchanged.
+
+### 1. Put the script beside its panel
+
+```text
+content/overview/
+  weather.html
+  weather.5m.py
+  assets/weather/data.json   # published by LCARS
+```
+
+Use `<panel>.<interval>.<extension>`, parsed from the right. Intervals are positive whole numbers with `s`, `m`, `h`, or `d` (24 hours); reject overflow. Require an existing HTML panel and exactly one producer per panel. Only discover regular, non-symlink files directly inside section directories. Ignore dot-prefixed files; `.weather.5m.py` is disabled. Recognise scripts separately from panels and never serve their source. Report malformed scheduled filenames and duplicate producers during validation.
+
+Enable execution only with `lcars serve --data ./content --run-scripts`. Ordinary serving and validation never execute scripts. Scripts run with the service account's permissions; this is trusted local code, not a sandbox.
+
+### 2. Run, validate, publish
+
+- Map `.py`, `.js`, `.sh`, and `.ps1` to Python, Node, a POSIX shell, and PowerShell. Allow installation-wide interpreter path overrides. Validate runtime availability; do not install runtimes. Shell scripts require a shell on Windows too.
+- Invoke the interpreter with an argument array and the script path, using the section directory as the working directory. Close stdin. Pass a deliberate environment, including explicitly configured credentials; never publish credentials or raw logs to panels.
+- Require stdout to contain exactly one UTF-8 JSON document using the existing version-1 data envelope. Allow trailing whitespace. Send diagnostics to stderr.
+- Publish only after successful exit and envelope validation. Bound stdout by the existing data-file limit and retain only a bounded stderr log. Timeout, nonzero exit, invalid output, and publication failure retain the last good data.
+- LCARS safely replaces `assets/<panel>/data.json`, then immediately scans the content store. Use platform-specific replacement where needed; never delete the old file first. Keep observation timestamps supplied by the producer. Identical bytes do not trigger a data update.
+
+### 3. Keep scheduling small
+
+Run once on startup, then wait the filename interval after completion. Never overlap a job or replay missed intervals after sleep. Retry failures at the next interval. Start with a 30-second timeout and a global limit of four running jobs; allow global overrides. Enforce one runner per content root.
+
+Reuse periodic scanning to discover additions, edits, renames, and removals. Cancel obsolete invocations and reject their results before publication. Use process groups on Linux/macOS and Job Objects on Windows for subprocess cleanup, including timeout and shutdown; bound pipe draining too.
+
+Record last attempt, last success, duration, and failure separately from data freshness. Surface a concise failure through existing panel diagnostics; keep detailed logs local. No per-job manifests, cron syntax, dependency installation, or retry queues.
+
+### 4. Notify browsers with SSE
+
+Add a private, authenticated-by-the-existing-proxy `/api/events` endpoint. Send only a state-change notification with the current revision. Use one `EventSource` per browser tab; the shell fetches `/api/state` and delivers changes through the existing panel bridge.
+
+Subscribe before sending the initial revision. Fetch state whenever the connection opens or reconnects; no event history is needed. Coalesce notifications, serialize state fetches, and fetch again if a notification arrived during a request. Send heartbeat comments, flush events, disable proxy buffering, and release subscribers on disconnect. Fall back to the existing polling loop after repeated connection failures, stopping it when SSE recovers.
+
+Keep the one-second filesystem scan for external edits. Script publication triggers an immediate scan, so it does not wait for either polling interval. Update panels without reloading their frames or resetting interaction state.
+
+### 5. Verify and document
+
+Implement in order: discovery and validation → runner and publication → SSE → documentation. Test filename errors, duplicate producers, invalid/partial output, timeout with children, safe replacement, disabling during a run, and no overlapping execution. Test SSE connection/reconnection, changes during a fetch, fallback polling, and a live panel retaining interaction state. Exercise process cleanup and file replacement on actual Linux, macOS, and Windows runners.
+
+Update the README and bundled authoring guide with one working script-and-panel example, runtime setup, the execution flag, and stdout/stderr rules. Done when editing or scheduling data updates an open panel promptly, failed runs preserve its data, and ordinary serving remains read-only.

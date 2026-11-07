@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Reading</title>
+  <meta name="lcars:size" content="normal">
+  <meta name="lcars:accent" content="blue">
+  <meta name="lcars:order" content="100">
+  <style>
+    .reading { display: grid; gap: 1rem; }
+    .value { font: 500 2.75rem/1.2 var(--lcars-label-font, sans-serif); color: var(--lcars-blue, #9999ff); }
+    .value, p { margin: 0; }
+    .note { color: var(--lcars-muted, #b8adb7); }
+  </style>
+</head>
+<body>
+  <section class="reading" aria-label="Current reading">
+    <p>Current reading</p>
+    <output class="value" id="value">Unavailable</output>
+    <p class="note" id="note">Waiting for data.</p>
+  </section>
+  <script>
+    // Write {"version":1,"data":{"value":420,"unit":"W"}} to
+    // assets/THIS-PANEL-ID/data.json. LCARS delivers it; do not fetch it.
+    LCARS.onData(({data, missing}) => {
+      const available = !missing && Number.isFinite(data?.value);
+      document.querySelector('#value').textContent = available
+        ? `${new Intl.NumberFormat().format(data.value)} ${String(data.unit ?? '')}`.trim()
+        : 'Unavailable';
+      document.querySelector('#note').textContent = available
+        ? 'The frame shows publication and observation times separately.'
+        : 'No reading is available. Publish data to this panel’s asset directory.';
+    });
+  </script>
+</body>
+</html>
