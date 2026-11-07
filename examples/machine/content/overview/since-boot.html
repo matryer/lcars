@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Since boot</title>
+  <meta name="lcars:size" content="normal">
+  <meta name="lcars:order" content="110">
+  <meta name="lcars:accent" content="blue">
+  <style>
+    p, dl, dd { margin: 0; }
+    .intro { color: var(--lcars-muted, #b8adb7); margin-bottom: 1.5rem; }
+    dl { display: grid; gap: 1rem; }
+    .stat { display: grid; grid-template-columns: minmax(0, 1fr); gap: .125rem; padding-bottom: 1rem; border-bottom: 2px solid #25212b; }
+    dt { font: 500 1.125rem/1.3 var(--lcars-label-font, sans-serif); color: var(--lcars-muted, #b8adb7); }
+    .value { font: 500 2.25rem/1.15 var(--lcars-label-font, sans-serif); color: var(--lcars-peach, #ff9966); font-variant-numeric: tabular-nums; }
+    @media (min-width: 520px) { dl { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 1.5rem; } }
+  </style>
+</head>
+<body>
+  <p class="intro" id="intro">Counters unavailable.</p>
+  <dl id="stats"></dl>
+  <script>
+    LCARS.onData(({data: d, missing}) => {
+      const stats = document.getElementById('stats');
+      if (missing || !Array.isArray(d?.counters)) {
+        document.getElementById('intro').textContent = 'Counters unavailable.';
+        stats.replaceChildren();
+        return;
+      }
+      const days = Math.floor(d.uptimeSeconds / 86400), hours = Math.floor(d.uptimeSeconds % 86400 / 3600);
+      document.getElementById('intro').textContent = `Kernel counters across ${days} days, ${hours} hours of uptime. Illustrative fixture.`;
+      stats.replaceChildren(...d.counters.map(c => {
+        const div = document.createElement('div'); div.className = 'stat';
+        const dt = document.createElement('dt'); dt.textContent = c.label;
+        const value = document.createElement('dd'); value.className = 'value'; value.textContent = c.value;
+        const context = document.createElement('dd'); context.textContent = c.context;
+        div.append(dt, value, context);
+        return div;
+      }));
+    });
+  </script>
+</body>
+</html>

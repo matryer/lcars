@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "updatedAt": "2026-11-07T09:42:00Z",
+  "data": {
+    "uptimeSeconds": 2009820,
+    "counters": [
+      {
+        "label": "Context switches",
+        "value": "41.7 billion",
+        "context": "About 20,750 every second"
+      },
+      {
+        "label": "Processes started",
+        "value": "2.94 million",
+        "context": "One every 0.68 seconds, mostly compilers"
+      },
+      {
+        "label": "CPU time used",
+        "value": "1,412 hours",
+        "context": "7.9% of available thread time"
+      },
+      {
+        "label": "CPU package energy",
+        "value": "41.6 kWh",
+        "context": "Average draw 74.5 W, estimated from RAPL"
+      },
+      {
+        "label": "Disk traffic",
+        "value": "3.1 TiB read",
+        "context": "1.9 TiB written to flash"
+      },
+      {
+        "label": "Network traffic",
+        "value": "634 GiB in",
+        "context": "232 GiB out, including Tailscale"
+      },
+      {
+        "label": "Major page faults",
+        "value": "1.21 million",
+        "context": "Pages read back from disk on demand"
+      },
+      {
+        "label": "Out-of-memory kills",
+        "value": "1",
+        "context": "rust-analyzer on 3 November"
+      }
+    ]
+  }
+}

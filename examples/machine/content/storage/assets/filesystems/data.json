@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "updatedAt": "2026-11-07T09:42:00Z",
+  "data": {
+    "mounts": [
+      {
+        "mount": "/",
+        "device": "nvme0n1p2",
+        "type": "btrfs",
+        "sizeGiB": 1862,
+        "usedGiB": 1080,
+        "growthGiBPerDay": 2.1
+      },
+      {
+        "mount": "/home",
+        "device": "nvme1n1p1",
+        "type": "btrfs",
+        "sizeGiB": 3726,
+        "usedGiB": 2646,
+        "growthGiBPerDay": 4.8
+      },
+      {
+        "mount": "/mnt/archive",
+        "device": "sda1 (USB)",
+        "type": "ext4",
+        "sizeGiB": 7452,
+        "usedGiB": 6931,
+        "growthGiBPerDay": 18.4
+      },
+      {
+        "mount": "/boot",
+        "device": "nvme0n1p1",
+        "type": "vfat",
+        "sizeGiB": 1,
+        "usedGiB": 0.23,
+        "growthGiBPerDay": 0
+      },
+      {
+        "mount": "/tmp",
+        "device": "tmpfs",
+        "type": "tmpfs",
+        "sizeGiB": 31.2,
+        "usedGiB": 1.3,
+        "growthGiBPerDay": null
+      }
+    ],
+    "warnPercent": 85,
+    "criticalPercent": 95
+  }
+}

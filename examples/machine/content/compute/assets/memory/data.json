@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "updatedAt": "2026-11-07T09:42:00Z",
+  "data": {
+    "totalGiB": 62.5,
+    "parts": [
+      {
+        "name": "Applications",
+        "gib": 27.5
+      },
+      {
+        "name": "Page cache",
+        "gib": 25.8
+      },
+      {
+        "name": "Kernel and slab",
+        "gib": 3.6
+      },
+      {
+        "name": "Free",
+        "gib": 5.6
+      }
+    ],
+    "swap": {
+      "usedGiB": 1.3,
+      "totalGiB": 16,
+      "kind": "zram (zstd)"
+    },
+    "pressure": {
+      "some10": 0.12,
+      "full10": 0
+    },
+    "top": [
+      {
+        "name": "firefox",
+        "gib": 6.8
+      },
+      {
+        "name": "rust-analyzer",
+        "gib": 4.1
+      },
+      {
+        "name": "postgres",
+        "gib": 2.6
+      },
+      {
+        "name": "chromium",
+        "gib": 2.2
+      },
+      {
+        "name": "ollama",
+        "gib": 1.9
+      }
+    ]
+  }
+}

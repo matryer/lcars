@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "updatedAt": "2026-11-07T09:42:00Z",
+  "data": {
+    "cpuPercent": 22,
+    "threads": 32,
+    "load": [
+      3.42,
+      2.87,
+      2.61
+    ],
+    "memoryUsedGiB": 27.5,
+    "memoryTotalGiB": 62.5,
+    "cpuTempC": 58,
+    "rootUsedPercent": 58,
+    "archiveUsedPercent": 93,
+    "uptimeSeconds": 2009820,
+    "failedUnits": 1
+  }
+}

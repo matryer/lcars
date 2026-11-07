@@ -1,0 +1,100 @@
+{
+  "version": 1,
+  "updatedAt": "2026-11-07T09:42:00Z",
+  "data": {
+    "drives": [
+      {
+        "model": "Samsung 990 PRO 2 TB",
+        "device": "nvme0n1",
+        "role": "system",
+        "state": "Normal",
+        "attributes": [
+          [
+            "Rated wear",
+            "6%"
+          ],
+          [
+            "Written",
+            "58.4 TB"
+          ],
+          [
+            "Powered on",
+            "9,412 h"
+          ],
+          [
+            "Media errors",
+            "0"
+          ],
+          [
+            "Unsafe shutdowns",
+            "21"
+          ],
+          [
+            "Temperature",
+            "44 °C"
+          ]
+        ]
+      },
+      {
+        "model": "WD Black SN850X 4 TB",
+        "device": "nvme1n1",
+        "role": "home",
+        "state": "Normal",
+        "attributes": [
+          [
+            "Rated wear",
+            "3%"
+          ],
+          [
+            "Written",
+            "31.9 TB"
+          ],
+          [
+            "Powered on",
+            "6,208 h"
+          ],
+          [
+            "Media errors",
+            "0"
+          ],
+          [
+            "Unsafe shutdowns",
+            "9"
+          ],
+          [
+            "Temperature",
+            "47 °C"
+          ]
+        ]
+      },
+      {
+        "model": "Seagate IronWolf 8 TB",
+        "device": "sda over USB 3.2",
+        "role": "archive",
+        "state": "Normal",
+        "attributes": [
+          [
+            "Reallocated",
+            "0 sectors"
+          ],
+          [
+            "Pending",
+            "0 sectors"
+          ],
+          [
+            "Powered on",
+            "21,880 h"
+          ],
+          [
+            "Start/stops",
+            "3,174"
+          ],
+          [
+            "Temperature",
+            "38 °C"
+          ]
+        ]
+      }
+    ]
+  }
+}

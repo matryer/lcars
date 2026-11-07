@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Memory</title>
+  <meta name="lcars:size" content="normal">
+  <meta name="lcars:order" content="20">
+  <meta name="lcars:accent" content="lilac">
+  <style>
+    p, h2, ul { margin: 0; }
+    .mem { display: grid; gap: 1.5rem; }
+    .label { font: 500 1.125rem/1.3 var(--lcars-label-font, sans-serif); color: var(--lcars-muted, #b8adb7); }
+    .value { font: 500 2.5rem/1.1 var(--lcars-label-font, sans-serif); color: var(--lcars-blue, #9999ff); font-variant-numeric: tabular-nums; }
+    .stack { display: flex; gap: 2px; height: 1.5rem; }
+    .stack span { min-width: 2px; }
+    .stack span:first-child { border-radius: .25rem 0 0 .25rem; }
+    .stack span:last-child { border-radius: 0 .25rem .25rem 0; }
+    .c0 { background: var(--lcars-blue, #9999ff); }
+    .c1 { background: var(--lcars-lilac, #cc99cc); }
+    .c2 { background: var(--lcars-peach, #ff9966); }
+    .c3 { background: #3a3340; }
+    .legend { list-style: none; padding: 0; display: grid; gap: .5rem; }
+    .legend li { display: grid; grid-template-columns: 1rem minmax(0, 1fr) auto; gap: .5rem; align-items: center; font-variant-numeric: tabular-nums; }
+    .swatch { width: 1rem; height: 1rem; border-radius: .25rem; }
+    .row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem; font-variant-numeric: tabular-nums; }
+    h2 { font: 500 1.375rem/1.2 var(--lcars-label-font, sans-serif); margin-bottom: .5rem; }
+    .muted { color: var(--lcars-muted, #b8adb7); }
+  </style>
+</head>
+<body>
+  <section class="mem" aria-label="Memory use">
+    <div>
+      <p class="label">Applications</p>
+      <p class="value" id="used">Unavailable</p>
+      <p class="muted" id="total"></p>
+    </div>
+    <div class="stack" id="stack" role="img" aria-label="Memory breakdown"></div>
+    <ul class="legend" id="legend"></ul>
+    <div>
+      <h2>Largest processes</h2>
+      <div id="top" class="legend"></div>
+    </div>
+    <div class="row"><span id="swap-label">Swap</span><strong id="swap">Unavailable</strong></div>
+    <div class="row"><span>Pressure, 10 s average</span><strong id="psi">Unavailable</strong></div>
+  </section>
+  <script>
+    const fmt = (v, d = 1) => new Intl.NumberFormat(undefined, {maximumFractionDigits: d, minimumFractionDigits: d}).format(v);
+    const row = (left, right) => { const r = document.createElement('div'); r.className = 'row'; const a = document.createElement('span'); a.textContent = left; const b = document.createElement('strong'); b.textContent = right; r.append(a, b); return r; };
+    LCARS.onData(({data: d, missing}) => {
+      if (missing || !d) { document.getElementById('used').textContent = 'Unavailable'; return; }
+      const apps = d.parts.find(p => p.name === 'Applications');
+      document.getElementById('used').textContent = `${fmt(apps.gib)} GiB`;
+      document.getElementById('total').textContent = `of ${fmt(d.totalGiB)} GiB usable · ${Math.round(apps.gib / d.totalGiB * 100)}% · Normal`;
+      const stack = document.getElementById('stack');
+      stack.setAttribute('aria-label', d.parts.map(p => `${p.name} ${fmt(p.gib)} GiB`).join(', '));
+      stack.replaceChildren(...d.parts.map((p, i) => { const s = document.createElement('span'); s.className = `c${i}`; s.style.flex = `${p.gib} 1 0`; return s; }));
+      document.getElementById('legend').replaceChildren(...d.parts.map((p, i) => {
+        const li = document.createElement('li');
+        const sw = document.createElement('span'); sw.className = `swatch c${i}`;
+        const name = document.createElement('span'); name.textContent = p.name;
+        const val = document.createElement('strong'); val.textContent = `${fmt(p.gib)} GiB`;
+        li.append(sw, name, val); return li;
+      }));
+      document.getElementById('top').replaceChildren(...d.top.map(p => row(p.name, `${fmt(p.gib)} GiB`)));
+      document.getElementById('swap-label').textContent = `Swap · ${d.swap.kind}`;
+      document.getElementById('swap').textContent = `${fmt(d.swap.usedGiB)} of ${d.swap.totalGiB} GiB`;
+      document.getElementById('psi').textContent = `${fmt(d.pressure.some10, 2)}% · Normal`;
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Vitals · atlas</title>
+  <meta name="lcars:size" content="wide">
+  <meta name="lcars:order" content="10">
+  <meta name="lcars:accent" content="orange">
+  <style>
+    p { margin: 0; }
+    .tiles { display: grid; gap: 1.5rem 1rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 9.5rem), 1fr)); }
+    .tile { display: grid; gap: .25rem; align-content: start; border-left: 6px solid var(--lcars-lilac, #cc99cc); padding-left: .75rem; }
+    .tile[data-state="Warning"] { border-left-color: var(--lcars-orange, #ff9900); }
+    .label { font: 500 1.125rem/1.3 var(--lcars-label-font, sans-serif); color: var(--lcars-muted, #b8adb7); }
+    .value { font: 500 2.5rem/1.1 var(--lcars-label-font, sans-serif); color: var(--lcars-blue, #9999ff); font-variant-numeric: tabular-nums; }
+    .detail { color: var(--lcars-muted, #b8adb7); font-variant-numeric: tabular-nums; }
+    .state { font-weight: 600; }
+    .tile[data-state="Warning"] .state { color: var(--lcars-orange, #ff9900); }
+    .foot { margin-top: 1.5rem; color: var(--lcars-muted, #b8adb7); }
+  </style>
+</head>
+<body>
+  <section aria-label="Machine vitals for atlas">
+    <div class="tiles" id="tiles"></div>
+    <p class="foot">Illustrative fixture · fictional host “atlas”</p>
+  </section>
+  <script>
+    const number = (v, digits = 0) => new Intl.NumberFormat(undefined, {maximumFractionDigits: digits, minimumFractionDigits: digits}).format(v);
+    const ok = v => Number.isFinite(v);
+    const uptime = s => `${Math.floor(s / 86400)} d ${Math.floor(s % 86400 / 3600)} h`;
+    function tiles(d) {
+      const t = [];
+      t.push(ok(d.cpuPercent)
+        ? {label: 'CPU', value: `${d.cpuPercent}%`, detail: `Load ${number(d.load[0], 2)} on ${d.threads} threads`, state: d.cpuPercent > 90 ? 'Warning' : 'Normal'}
+        : {label: 'CPU', value: 'Unavailable'});
+      t.push(ok(d.memoryUsedGiB)
+        ? {label: 'Memory', value: `${number(d.memoryUsedGiB, 1)} GiB`, detail: `of ${number(d.memoryTotalGiB, 1)} GiB · ${Math.round(d.memoryUsedGiB / d.memoryTotalGiB * 100)}%`, state: d.memoryUsedGiB / d.memoryTotalGiB > .9 ? 'Warning' : 'Normal'}
+        : {label: 'Memory', value: 'Unavailable'});
+      t.push(ok(d.cpuTempC)
+        ? {label: 'CPU temperature', value: `${d.cpuTempC} °C`, detail: 'Limit 95 °C', state: d.cpuTempC >= 85 ? 'Warning' : 'Normal'}
+        : {label: 'CPU temperature', value: 'Unavailable'});
+      t.push(ok(d.archiveUsedPercent)
+        ? {label: 'Fullest disk', value: `${d.archiveUsedPercent}%`, detail: '/mnt/archive', state: d.archiveUsedPercent >= 85 ? 'Warning' : 'Normal'}
+        : {label: 'Fullest disk', value: 'Unavailable'});
+      t.push(ok(d.failedUnits)
+        ? {label: 'Failed services', value: String(d.failedUnits), detail: d.failedUnits ? 'backup-archive' : 'None', state: d.failedUnits ? 'Warning' : 'Normal'}
+        : {label: 'Failed services', value: 'Unavailable'});
+      t.push(ok(d.uptimeSeconds)
+        ? {label: 'Uptime', value: uptime(d.uptimeSeconds), detail: 'Since kernel 6.17.4', state: 'Normal'}
+        : {label: 'Uptime', value: 'Unavailable'});
+      return t;
+    }
+    LCARS.onData(({data, missing}) => {
+      const root = document.getElementById('tiles');
+      const list = missing || !data ? [{label: 'Vitals', value: 'Unavailable', detail: 'No data published'}] : tiles(data);
+      root.replaceChildren(...list.map(t => {
+        const tile = document.createElement('div');
+        tile.className = 'tile';
+        tile.dataset.state = t.state ?? 'Unavailable';
+        for (const [cls, text] of [['label', t.label], ['value', t.value], ['state', t.state ?? 'Unavailable'], ['detail', t.detail ?? '']]) {
+          const p = document.createElement('p'); p.className = cls; p.textContent = text; tile.append(p);
+        }
+        return tile;
+      }));
+    });
+  </script>
+</body>
+</html>

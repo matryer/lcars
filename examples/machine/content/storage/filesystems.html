@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Filesystems</title>
+  <meta name="lcars:size" content="wide">
+  <meta name="lcars:order" content="10">
+  <meta name="lcars:accent" content="apricot">
+  <style>
+    p { margin: 0; }
+    .mounts { display: grid; gap: 1.25rem; }
+    .mount { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .25rem .75rem; font-variant-numeric: tabular-nums; }
+    .name { font: 500 1.5rem/1.2 var(--lcars-label-font, sans-serif); overflow-wrap: anywhere; }
+    .pct { font: 500 1.5rem/1.2 var(--lcars-label-font, sans-serif); color: var(--lcars-blue, #9999ff); text-align: right; }
+    .bar { grid-column: 1 / -1; height: .75rem; background: #25212b; border-radius: 0 .75rem .75rem 0; position: relative; }
+    .bar span { display: block; height: 100%; background: var(--lcars-blue, #9999ff); border-radius: inherit; }
+    .bar i { position: absolute; top: -.25rem; bottom: -.25rem; width: 2px; background: var(--lcars-text, #f5eee6); }
+    .meta { grid-column: 1 / -1; color: var(--lcars-muted, #b8adb7); }
+    .mount[data-state="Warning"] .bar span { background: var(--lcars-orange, #ff9900); }
+    .mount[data-state="Warning"] .pct, .state.Warning { color: var(--lcars-orange, #ff9900); }
+    .state { font-weight: 600; }
+    .key { color: var(--lcars-muted, #b8adb7); margin-top: 1.5rem; }
+  </style>
+</head>
+<body>
+  <section aria-label="Filesystem usage">
+    <div class="mounts" id="mounts"><p>Unavailable</p></div>
+    <p class="key" id="key">The white tick marks the warning threshold.</p>
+  </section>
+  <script>
+    const fmt = gib => gib >= 1024 ? `${(gib / 1024).toFixed(2)} TiB` : gib >= 10 ? `${Math.round(gib)} GiB` : `${gib.toFixed(1)} GiB`;
+    const runway = (free, rate) => !Number.isFinite(rate) ? 'Growth not tracked for tmpfs' : rate <= 0 ? 'Not growing' : `Full in about ${Math.round(free / rate)} days at ${rate} GiB a day`;
+    LCARS.onData(({data: d, missing}) => {
+      const root = document.getElementById('mounts');
+      if (missing || !d) { root.textContent = 'Unavailable'; return; }
+      document.getElementById('key').textContent = `The white tick marks the ${d.warnPercent}% warning threshold. Critical at ${d.criticalPercent}%.`;
+      root.replaceChildren(...d.mounts.map(m => {
+        const pct = Math.round(m.usedGiB / m.sizeGiB * 100);
+        const state = pct >= d.criticalPercent ? 'Critical' : pct >= d.warnPercent ? 'Warning' : 'Normal';
+        const row = document.createElement('div'); row.className = 'mount'; row.dataset.state = state;
+        const name = document.createElement('p'); name.className = 'name'; name.textContent = m.mount;
+        const p = document.createElement('p'); p.className = 'pct'; p.textContent = `${pct}%`;
+        const bar = document.createElement('div'); bar.className = 'bar';
+        bar.setAttribute('role', 'meter'); bar.setAttribute('aria-valuenow', pct); bar.setAttribute('aria-valuemin', 0); bar.setAttribute('aria-valuemax', 100); bar.setAttribute('aria-label', `${m.mount} used`);
+        const fill = document.createElement('span'); fill.style.width = `${pct}%`;
+        const tick = document.createElement('i'); tick.style.left = `${d.warnPercent}%`;
+        bar.append(fill, tick);
+        const meta = document.createElement('p'); meta.className = 'meta';
+        const st = document.createElement('span'); st.className = `state ${state}`; st.textContent = state;
+        meta.append(st, ` · ${fmt(m.usedGiB)} of ${fmt(m.sizeGiB)} · ${fmt(m.sizeGiB - m.usedGiB)} free · ${m.type} on ${m.device} · ${runway(m.sizeGiB - m.usedGiB, m.growthGiBPerDay)}`);
+        row.append(name, p, bar, meta);
+        return row;
+      }));
+    });
+  </script>
+</body>
+</html>

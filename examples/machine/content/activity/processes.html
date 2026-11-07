@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Top processes</title>
+  <meta name="lcars:size" content="full">
+  <meta name="lcars:order" content="10">
+  <meta name="lcars:accent" content="orange">
+  <style>
+    p { margin: 0; }
+    .procs { display: grid; gap: 1rem; }
+    .counts { display: flex; flex-wrap: wrap; gap: .5rem 2rem; font-variant-numeric: tabular-nums; }
+    .counts strong { font: 500 1.75rem/1.2 var(--lcars-label-font, sans-serif); color: var(--lcars-blue, #9999ff); margin-right: .375rem; }
+    .sort { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+    .sort span { color: var(--lcars-muted, #b8adb7); margin-right: .25rem; }
+    button { min-height: 44px; padding: 0 1.25rem; border: 0; border-radius: 22px; background: var(--lcars-lilac, #cc99cc); color: var(--lcars-ink, #000); font: 500 1.125rem/1 var(--lcars-label-font, sans-serif); cursor: pointer; }
+    button[aria-pressed="true"] { background: var(--lcars-orange, #ff9900); }
+    button:focus-visible { outline: 3px solid var(--lcars-text, #f5eee6); outline-offset: 2px; }
+    .scroll { overflow-x: auto; }
+    .scroll:focus-visible { outline: 2px solid var(--lcars-apricot, #ffcc99); }
+    table { border-collapse: collapse; width: 100%; min-width: 36rem; font-variant-numeric: tabular-nums; }
+    th, td { padding: .5rem .75rem; text-align: right; border-bottom: 1px solid #2e2833; white-space: nowrap; }
+    th { font: 500 1.125rem/1.2 var(--lcars-label-font, sans-serif); color: var(--lcars-muted, #b8adb7); }
+    th:nth-child(2), td:nth-child(2), th:nth-child(3), td:nth-child(3) { text-align: left; }
+    td.cpu { position: relative; min-width: 8rem; }
+    .cpubar { display: inline-block; vertical-align: middle; height: .5rem; margin-right: .5rem; background: var(--lcars-peach, #ff9966); border-radius: 0 .25rem .25rem 0; }
+    @media (max-width: 520px) { table { min-width: 0; } th:nth-child(3), td:nth-child(3), th:nth-child(6), td:nth-child(6) { display: none; } td.cpu { min-width: 0; } .cpubar { display: none; } th, td { padding: .5rem .375rem; } }
+    .hint { color: var(--lcars-muted, #b8adb7); }
+  </style>
+</head>
+<body>
+  <section class="procs" aria-label="Top processes">
+    <p class="counts" id="counts">Unavailable</p>
+    <div class="sort" role="group" aria-label="Sort processes">
+      <span>Sort by</span>
+      <button type="button" data-key="cpu" aria-pressed="true">CPU</button>
+      <button type="button" data-key="memMiB" aria-pressed="false">Memory</button>
+      <button type="button" data-key="name" aria-pressed="false">Name</button>
+    </div>
+    <div class="scroll" tabindex="0" role="region" aria-label="Process table, scrolls horizontally">
+      <table>
+        <thead><tr><th scope="col">PID</th><th scope="col">Process</th><th scope="col">User</th><th scope="col">CPU</th><th scope="col">Memory</th><th scope="col">CPU time</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <p class="hint">CPU is a percentage of one thread; 100% is one fully busy thread out of 32. Illustrative fixture.</p>
+  </section>
+  <script>
+    let latest = null, key = 'cpu';
+    const mem = m => m >= 1024 ? `${(m / 1024).toFixed(1)} GiB` : `${m} MiB`;
+    function render() {
+      const body = document.getElementById('rows');
+      if (!latest) { body.replaceChildren(); return; }
+      const rows = [...latest.processes].sort((a, b) => key === 'name' ? a.name.localeCompare(b.name) : b[key] - a[key]);
+      body.replaceChildren(...rows.map(p => {
+        const tr = document.createElement('tr');
+        for (const v of [p.pid, p.name, p.user]) tr.insertCell().textContent = v;
+        const cpu = tr.insertCell(); cpu.className = 'cpu';
+        const bar = document.createElement('span'); bar.className = 'cpubar'; bar.style.width = `${Math.max(.125, p.cpu / 100 * 6)}rem`; bar.setAttribute('aria-hidden', 'true');
+        cpu.append(bar, `${p.cpu.toFixed(1)}%`);
+        tr.insertCell().textContent = mem(p.memMiB);
+        tr.insertCell().textContent = p.time;
+        return tr;
+      }));
+    }
+    for (const b of document.querySelectorAll('.sort button')) b.addEventListener('click', () => {
+      key = b.dataset.key;
+      for (const o of document.querySelectorAll('.sort button')) o.setAttribute('aria-pressed', String(o === b));
+      render();
+    });
+    LCARS.onData(({data, missing}) => {
+      latest = missing || !data ? null : data;
+      const counts = document.getElementById('counts');
+      if (!latest) { counts.textContent = 'Unavailable'; render(); return; }
+      counts.replaceChildren(...[['total', latest.total], ['running', latest.running], ['sleeping', latest.sleeping], ['zombie', latest.zombie]].map(([l, v]) => {
+        const s = document.createElement('span'); const n = document.createElement('strong'); n.textContent = v; s.append(n, l); return s;
+      }));
+      render();
+    });
+  </script>
+</body>
+</html>
