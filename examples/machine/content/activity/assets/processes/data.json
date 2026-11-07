@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "updatedAt": "2026-11-07T09:42:00Z",
+  "data": {
+    "total": 612,
+    "running": 3,
+    "sleeping": 604,
+    "zombie": 0,
+    "processes": [
+      {
+        "pid": 41822,
+        "name": "rustc",
+        "user": "dev",
+        "cpu": 97.3,
+        "memMiB": 1840,
+        "time": "0:41"
+      },
+      {
+        "pid": 2210,
+        "name": "firefox",
+        "user": "dev",
+        "cpu": 12.6,
+        "memMiB": 6963,
+        "time": "14:02:11"
+      },
+      {
+        "pid": 9140,
+        "name": "rust-analyzer",
+        "user": "dev",
+        "cpu": 8.4,
+        "memMiB": 4198,
+        "time": "6:12:40"
+      },
+      {
+        "pid": 1876,
+        "name": "Hyprland",
+        "user": "dev",
+        "cpu": 4.1,
+        "memMiB": 412,
+        "time": "21:47:03"
+      },
+      {
+        "pid": 3318,
+        "name": "postgres",
+        "user": "postgres",
+        "cpu": 2.9,
+        "memMiB": 2662,
+        "time": "3:20:58"
+      },
+      {
+        "pid": 2734,
+        "name": "chromium",
+        "user": "dev",
+        "cpu": 2.2,
+        "memMiB": 2253,
+        "time": "2:09:31"
+      },
+      {
+        "pid": 5571,
+        "name": "ollama",
+        "user": "ollama",
+        "cpu": 0.4,
+        "memMiB": 1946,
+        "time": "0:58:12"
+      },
+      {
+        "pid": 1,
+        "name": "systemd",
+        "user": "root",
+        "cpu": 0.1,
+        "memMiB": 14,
+        "time": "0:19:44"
+      },
+      {
+        "pid": 1402,
+        "name": "tailscaled",
+        "user": "root",
+        "cpu": 0.3,
+        "memMiB": 61,
+        "time": "1:02:37"
+      },
+      {
+        "pid": 2001,
+        "name": "pipewire",
+        "user": "dev",
+        "cpu": 0.6,
+        "memMiB": 38,
+        "time": "0:44:05"
+      }
+    ]
+  }
+}
