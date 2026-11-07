@@ -78,9 +78,11 @@ func TestMountedComponentReflow(t *testing.T) {
 	if _, err = chromedp.Run(frameCtx, chromedp.Evaluate[bool](`(document.querySelector('#choice').checked=true,document.querySelector('#choice').focus(),true)`)); err != nil {
 		t.Fatal(err)
 	}
+	// The shell fades panels in, and browsers throttle drawing in transparent
+	// frames, so wait for the reflow rather than assuming a fixed delay.
 	verify := func() {
 		t.Helper()
-		ok, err := chromedp.Run(frameCtx, chromedp.Evaluate[bool](`document.querySelector('#choice').checked && document.activeElement===document.querySelector('#choice') && document.documentElement.scrollWidth<=innerWidth+1 && Math.abs(document.querySelector('canvas').width-document.querySelector('canvas').clientWidth*devicePixelRatio)<2`))
+		ok, err := chromedp.Run(frameCtx, chromedp.Poll[bool](`document.querySelector('#choice').checked && document.activeElement===document.querySelector('#choice') && document.documentElement.scrollWidth<=innerWidth+1 && Math.abs(document.querySelector('canvas').width-document.querySelector('canvas').clientWidth*devicePixelRatio)<2`, chromedp.WithPollingTimeout(3*time.Second)))
 		if err != nil || !ok {
 			t.Fatalf("component failed reflow/state/Canvas check: ok=%v err=%v", ok, err)
 		}
