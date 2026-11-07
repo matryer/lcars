@@ -12,7 +12,7 @@ mise run build
 ./lcars serve --data ./examples/content
 ```
 
-The server binds to loopback on port 8080 by default. The included content is a made-up demo canvas, labelled as such in its Overview briefing. Its six sections (Overview, Home, Week, Systems with Network and Storage sub-sections, Projects with Garden and Renovation, Notes) show Markdown, plain text and HTML panels, SVG charts, a sortable table, a responsive week calendar and live `data.json` files. For your own canvas, create an empty data directory and run `lcars serve --data /path/to/content`. The root must exist; the app does not create or populate it for you.
+The server binds to loopback on port 8080 by default. The included content is a made-up demo canvas, labelled as such in its Overview briefing. Its six sections (Overview, Home, Week, Systems with Network and Storage sub-sections, Projects with Garden and Renovation, Notes) show Markdown, plain text and HTML panels, SVG charts, a sortable table, a responsive week calendar and live `data.json` files. For a focused example with screenshots, see [examples/machine](examples/machine/README.md): an illustrative machine-stats canvas for a fictional workstation. For your own canvas, create an empty data directory and run `lcars serve --data /path/to/content`. The root must exist; the app does not create or populate it for you.
 
 ```text
 content/
