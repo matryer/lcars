@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/matryer/lcars/internal/buildinfo"
 	"github.com/matryer/lcars/internal/content"
 	"github.com/matryer/lcars/internal/server"
 )
@@ -315,5 +316,17 @@ func TestSubSectionRoutesAndComponents(t *testing.T) {
 	}
 	if got := request(handler, strings.Replace(url, "systems~network~latency", "systems~network~latency~extra", 1), nil).Code; got != 404 {
 		t.Fatalf("malformed component ID = %d, want 404", got)
+	}
+}
+
+func TestShellFooterShowsVersion(t *testing.T) {
+	_, handler, _ := fixture(t)
+	body := request(handler, "/s/overview", nil).Body.String()
+	if strings.Contains(body, "__LCARS_VERSION") {
+		t.Fatal("version placeholders were not replaced")
+	}
+	want := `id="version" class="bar-version" href="https://github.com/matryer/lcars`
+	if !strings.Contains(body, want) || !strings.Contains(body, ">v"+buildinfo.Current().Version+"</a>") {
+		t.Fatalf("footer version missing from shell page")
 	}
 }
