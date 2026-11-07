@@ -5,22 +5,26 @@
       {
         "state": "Warning",
         "title": "vault disk is 86% full",
-        "where": "Systems \u00b7 Hosts"
+        "where": "Systems · Hosts",
+        "section": "systems"
       },
       {
         "state": "Critical",
         "title": "Offsite backup failed overnight",
-        "where": "Systems \u00b7 Storage"
+        "where": "Systems · Storage",
+        "section": "systems/storage"
       },
       {
         "state": "Warning",
         "title": "Photo sync is retrying",
-        "where": "Systems \u00b7 Services"
+        "where": "Systems · Services",
+        "section": "systems"
       },
       {
         "state": "Warning",
         "title": "Hallway sensor battery at 12%",
-        "where": "Home \u00b7 Devices"
+        "where": "Home · Devices",
+        "section": "home"
       }
     ]
   }

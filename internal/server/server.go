@@ -107,11 +107,15 @@ func New(store *content.Store, allowedHosts ...string) http.Handler {
 		case strings.HasPrefix(p, "/toolkit/"):
 			name := strings.TrimPrefix(p, "/toolkit/")
 			switch name {
-			case "shell.css", "shell.js", "frame.css", "frame.js":
-				serveFile(w, r, web.Files, name, "")
+			case "shell.js":
+				serveBytes(w, r, web.ShellScript(), "text/javascript; charset=utf-8")
+			case "shell.css":
+				serveBytes(w, r, web.ShellStyles(), "text/css; charset=utf-8")
+			case "frame.css", "frame.js":
+				serveFile(w, r, web.Files, "toolkit/"+name, "")
 			case "Antonio.ttf":
 				w.Header().Set("Access-Control-Allow-Origin", "*")
-				serveFile(w, r, web.Files, "fonts/Antonio.ttf", "font/ttf")
+				serveFile(w, r, web.Files, "toolkit/fonts/Antonio.ttf", "font/ttf")
 			default:
 				http.NotFound(w, r)
 			}
@@ -146,6 +150,9 @@ func serveFile(w http.ResponseWriter, r *http.Request, files fs.FS, name, mime s
 			mime = "text/javascript; charset=utf-8"
 		}
 	}
+	serveBytes(w, r, b, mime)
+}
+func serveBytes(w http.ResponseWriter, r *http.Request, b []byte, mime string) {
 	w.Header().Set("Content-Type", mime)
 	if r.Method != "HEAD" {
 		_, _ = w.Write(b)

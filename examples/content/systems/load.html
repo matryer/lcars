@@ -8,27 +8,38 @@
   <meta name="lcars:order" content="20">
   <meta name="lcars:accent" content="blue">
   <style>
-    .legend { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; margin: 0 0 .75rem; padding: 0; list-style: none; }
-    .legend li + li { margin-top: 0; }
-    .legend li { display: flex; align-items: center; gap: .5rem; }
+    .legend { display: flex; flex-wrap: wrap; gap: .5rem; margin: 0 0 .75rem; }
+    .legend button { display: flex; align-items: center; gap: .5rem; padding: 0 1rem 0 .75rem; border: 0; border-radius: 0 22px 22px 0; background: #1c1820; color: var(--lcars-text); font: inherit; }
+    .legend button[aria-pressed=false] { opacity: .45; }
     .legend svg { width: 2rem; height: .75rem; }
-    #chart { width: 100%; height: auto; overflow: visible; }
+    #chart { display: block; width: 100%; height: auto; overflow: visible; touch-action: pan-y; cursor: crosshair; border-radius: 4px; }
     text { fill: var(--lcars-muted); font: 12px var(--lcars-label-font); letter-spacing: .04em; }
     .axis { stroke: #3a3440; }
-    .s0 { stroke: var(--lcars-blue); } .s1 { stroke: var(--lcars-apricot); } .s2 { stroke: var(--lcars-lilac); }
+    .s0 { stroke: var(--lcars-blue); fill: var(--lcars-blue); } .s1 { stroke: var(--lcars-apricot); fill: var(--lcars-apricot); } .s2 { stroke: var(--lcars-lilac); fill: var(--lcars-lilac); }
     .line { fill: none; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
-    details { margin-top: .75rem; }
-    summary { cursor: pointer; padding: .5rem 0; }
+    .cursor { stroke: var(--lcars-text); stroke-width: 1; stroke-dasharray: 3 3; }
+    .dot { stroke: #000; stroke-width: 2; }
+    /* A scan line sweeps the plot; it is motion only and never changes the readings. */
+    .scan { --lcars-scan-color: var(--lcars-text); --lcars-scan-duration: 8s; }
+    .readout { margin: .5rem 0 0; min-height: 1.5em; color: var(--lcars-muted); }
+    .readout strong { color: var(--lcars-text); font-weight: 600; }
   </style>
 </head>
 <body>
-  <ul class="legend" id="legend"></ul>
-  <svg id="chart" role="img" aria-labelledby="chart-desc"><desc id="chart-desc">CPU percentage per host over the last 24 hours.</desc></svg>
-  <details><summary>Peaks and averages</summary><div class="lcars-scroll" role="region" aria-label="CPU summary table" tabindex="0"><table><thead><tr><th>Host</th><th>Average</th><th>Peak</th></tr></thead><tbody id="rows"></tbody></table></div></details>
+  <div class="legend" id="legend" role="group" aria-label="Hosts"></div>
+  <div class="lcars-scan scan"><svg id="chart" tabindex="0" role="img" aria-labelledby="chart-desc"><desc id="chart-desc">CPU percentage per host over the last 24 hours. Focus the chart and use the arrow keys to read each hour.</desc></svg></div>
+  <p class="readout" id="readout" aria-live="polite">Hover, drag or use the arrow keys to read an hour.</p>
   <script>
     const ns = 'http://www.w3.org/2000/svg', dashes = ['', '8 5', '2 5'];
-    let hosts = [];
+    let hosts = [], hidden = new Set(), hour = -1, geometry;
     const el = (name, attrs, text) => { const node = document.createElementNS(ns, name); for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v); if (text != null) node.textContent = text; return node; };
+    function readout() {
+      const box = document.getElementById('readout');
+      if (hour < 0 || !hosts.length) { box.textContent = 'Hover, drag or use the arrow keys to read an hour.'; return; }
+      const ago = hosts[0].cpu.length - 1 - hour;
+      box.replaceChildren(Object.assign(document.createElement('strong'), {textContent: ago ? `${ago}h ago` : 'Now'}));
+      hosts.forEach(host => { if (!hidden.has(host.name)) box.append(` · ${host.name} `, Object.assign(document.createElement('strong'), {textContent: `${host.cpu[hour]}%`})); });
+    }
     function draw() {
       const svg = document.getElementById('chart');
       [...svg.querySelectorAll(':not(desc)')].forEach(node => node.remove());
@@ -40,33 +51,58 @@
         svg.append(el('line', {class: 'axis', x1: left, x2: width, y1: y, y2: y}), el('text', {x: 0, y: y + 4}, `${v}%`));
       }
       const points = hosts[0]?.cpu.length || 24, step = (width - left) / (points - 1);
+      geometry = {left, step, points};
       const every = width < 420 ? 12 : 6;
-      for (let i = 0; i < points; i += every) {
-        const ago = points - 1 - i;
-        svg.append(el('text', {x: left + i * step, y: height - 6, 'text-anchor': i === 0 ? 'start' : 'middle'}, ago ? `−${ago}h` : 'now'));
-      }
+      for (let i = 0; i < points - 1; i += every) svg.append(el('text', {x: left + i * step, y: height - 6, 'text-anchor': i === 0 ? 'start' : 'middle'}, `−${points - 1 - i}h`));
       svg.append(el('text', {x: width, y: height - 6, 'text-anchor': 'end'}, 'now'));
+      const y = v => top + plot - v / 100 * plot;
       hosts.forEach((host, index) => {
-        const d = host.cpu.map((v, i) => `${i ? 'L' : 'M'}${(left + i * step).toFixed(1)},${(top + plot - v / 100 * plot).toFixed(1)}`).join('');
-        const path = el('path', {class: `line s${index % 3}`, d});
+        if (hidden.has(host.name)) return;
+        const path = el('path', {class: `line s${index % 3}`, d: host.cpu.map((v, i) => `${i ? 'L' : 'M'}${(left + i * step).toFixed(1)},${y(v).toFixed(1)}`).join('')});
         if (dashes[index % 3]) path.setAttribute('stroke-dasharray', dashes[index % 3]);
         svg.append(path);
       });
+      if (hour >= 0) {
+        const x = left + hour * step;
+        svg.append(el('line', {class: 'cursor', x1: x, x2: x, y1: top, y2: top + plot}));
+        hosts.forEach((host, index) => { if (!hidden.has(host.name)) svg.append(el('circle', {class: `dot s${index % 3}`, cx: x, cy: y(host.cpu[hour]), r: 4.5})); });
+      }
+      readout();
     }
+    function at(event) {
+      if (!geometry) return;
+      const box = event.currentTarget.getBoundingClientRect(), scale = (event.currentTarget.viewBox.baseVal?.width || box.width) / box.width;
+      hour = Math.max(0, Math.min(geometry.points - 1, Math.round(((event.clientX - box.left) * scale - geometry.left) / geometry.step)));
+      draw();
+    }
+    const chart = document.getElementById('chart');
+    chart.addEventListener('pointermove', at);
+    chart.addEventListener('pointerdown', at);
+    chart.addEventListener('pointerleave', event => { if (event.pointerType === 'mouse') { hour = -1; draw(); } });
+    chart.addEventListener('keydown', event => {
+      const last = (geometry?.points || 24) - 1;
+      const moves = {ArrowLeft: -1, ArrowRight: 1, Home: -Infinity, End: Infinity};
+      if (event.key === 'Escape') { hour = -1; draw(); return; }
+      if (!(event.key in moves)) return;
+      event.preventDefault();
+      hour = Math.max(0, Math.min(last, (hour < 0 ? last : hour) + moves[event.key]));
+      draw();
+    });
+    chart.addEventListener('blur', () => { hour = -1; draw(); });
     LCARS.onData(({data, missing}) => {
       hosts = !missing && Array.isArray(data?.hosts) ? data.hosts.filter(h => Array.isArray(h.cpu) && h.cpu.length > 1) : [];
       document.getElementById('legend').replaceChildren(...hosts.map((host, index) => {
-        const li = document.createElement('li');
+        const button = document.createElement('button'); button.type = 'button'; button.setAttribute('aria-pressed', String(!hidden.has(host.name)));
         const key = el('svg', {viewBox: '0 0 32 12', 'aria-hidden': 'true'});
         const line = el('line', {class: `line s${index % 3}`, x1: 2, x2: 30, y1: 6, y2: 6});
         if (dashes[index % 3]) line.setAttribute('stroke-dasharray', dashes[index % 3]);
-        key.append(line); li.append(key, host.name); return li;
-      }));
-      document.getElementById('rows').replaceChildren(...hosts.map(host => {
-        const tr = document.createElement('tr');
-        const average = Math.round(host.cpu.reduce((a, b) => a + b, 0) / host.cpu.length);
-        for (const value of [host.name, `${average}%`, `${Math.max(...host.cpu)}%`]) { const td = document.createElement('td'); td.textContent = value; tr.append(td); }
-        return tr;
+        key.append(line); button.append(key, host.name);
+        button.addEventListener('click', () => {
+          if (!hidden.has(host.name) && hidden.size >= hosts.length - 1) return; // keep one host visible
+          hidden.has(host.name) ? hidden.delete(host.name) : hidden.add(host.name);
+          button.setAttribute('aria-pressed', String(!hidden.has(host.name))); draw();
+        });
+        return button;
       }));
       draw();
     });

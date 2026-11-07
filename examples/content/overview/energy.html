@@ -18,21 +18,27 @@
     .bar { grid-column: 1 / -1; height: .75rem; background: #25212b; border-radius: 0 .75rem .75rem 0; }
     .bar span { display: block; height: 100%; width: 0; background: var(--lcars-lilac, #cc99cc); border-radius: inherit; }
     #solar-bar { background: var(--lcars-apricot, #ffcc99); }
+    .bar.lcars-scan { --lcars-scan-color: var(--lcars-text); }
+    .open { justify-self: start; padding: 0 1.25rem 0 1rem; border-radius: 0 22px 22px 0; background: #2a2630; color: var(--lcars-text); font: 500 1rem/1 var(--lcars-label-font); text-transform: uppercase; letter-spacing: .04em; }
+    .open:hover { background: var(--lcars-blue); color: var(--lcars-ink); }
     details { border-top: 2px solid var(--lcars-lilac, #cc99cc); padding-top: .5rem; }
     summary { cursor: pointer; min-height: 44px; padding: .5rem 0; }
-    @media (min-width: 540px) { .energy { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } details { grid-column: 1 / -1; } }
+    @media (min-width: 540px) { .energy { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } details, .open { grid-column: 1 / -1; } }
   </style>
 </head>
 <body>
   <section class="energy" aria-label="Illustrative household energy readings">
     <div><p class="label">Current demand</p><output class="reading" id="demand">Unavailable</output><p id="status">No reading</p></div>
     <div class="flows" aria-label="Energy sources">
-      <div class="flow"><span>Solar generation</span><strong id="solar">Unavailable</strong><div class="bar" aria-hidden="true"><span id="solar-bar"></span></div></div>
-      <div class="flow"><span>Grid import</span><strong id="grid">Unavailable</strong><div class="bar" aria-hidden="true"><span id="grid-bar"></span></div></div>
+      <div class="flow"><span>Solar generation</span><strong id="solar">Unavailable</strong><div class="bar lcars-scan" aria-hidden="true"><span id="solar-bar"></span></div></div>
+      <div class="flow"><span>Grid import</span><strong id="grid">Unavailable</strong><div class="bar lcars-scan" aria-hidden="true"><span id="grid-bar"></span></div></div>
     </div>
     <details><summary>About these readings</summary><p>Bars compare each source with a 2,000 W reference. Edit the data file with this open: it stays open.</p></details>
+    <button class="open" id="week" type="button">This week's energy · Open Home →</button>
   </section>
   <script>
+    // The week's breakdown lives on the Home page.
+    document.getElementById('week').addEventListener('click', () => LCARS.navigate('home'));
     const format = value => Number.isFinite(value) ? `${new Intl.NumberFormat().format(value)} W` : 'Unavailable';
     LCARS.onData(({data, missing}) => {
       for (const name of ['demand', 'solar', 'grid']) {

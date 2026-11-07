@@ -9,8 +9,9 @@
   <meta name="lcars:accent" content="peach">
   <style>
     .rooms { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 7.5rem), 1fr)); gap: 1rem; }
-    .room { border-left: 4px solid var(--lcars-peach); padding: .25rem 0 .25rem .75rem; display: grid; gap: .125rem; }
-    .room p { margin: 0; }
+    .room { border: 0; border-left: 4px solid var(--lcars-peach); padding: .25rem .5rem .25rem .75rem; display: grid; gap: .125rem; background: none; color: var(--lcars-text); font: inherit; text-align: left; cursor: pointer; min-height: 44px; }
+    .room:hover { background: #1c1820; }
+    .room span { display: block; }
     .name { font: 500 1.125rem/1.2 var(--lcars-label-font); text-transform: uppercase; letter-spacing: .04em; color: var(--lcars-peach); }
     .temp { font: 500 2.5rem/1.1 var(--lcars-label-font); }
     .meta { color: var(--lcars-muted); font-size: .875rem; }
@@ -18,22 +19,28 @@
   </style>
 </head>
 <body>
-  <div class="rooms" id="rooms" role="list"></div>
+  <div class="rooms" id="rooms"></div>
   <script>
+    const heading = (room, heating) => heating ? 'Below target, so the heating is on.' : room.temp > room.target + 1 ? 'Above target; the heating is off.' : 'At target.';
     const one = value => Number.isFinite(value) ? value.toFixed(1) : '–';
     LCARS.onData(({data, missing}) => {
       const rooms = !missing && Array.isArray(data?.rooms) ? data.rooms : [];
       const box = document.getElementById('rooms');
       box.replaceChildren(...rooms.map(room => {
-        const card = document.createElement('div'); card.className = 'room'; card.setAttribute('role', 'listitem');
+        const card = document.createElement('button'); card.type = 'button'; card.className = 'room'; card.id = `room-${room.name}`.replace(/[^\w-]/g, '-');
         const heating = Number.isFinite(room.temp) && Number.isFinite(room.target) && room.temp < room.target - 0.2;
-        card.innerHTML = '<p class="name"></p><p class="temp"></p><p class="meta target"></p><p class="meta humidity"></p>';
+        card.innerHTML = '<span class="name"></span><span class="temp"></span><span class="meta target"></span><span class="meta humidity"></span>';
         card.querySelector('.name').textContent = room.name;
         card.querySelector('.temp').textContent = `${one(room.temp)}°`;
         const target = card.querySelector('.target');
         target.textContent = heating ? `Heating to ${one(room.target)}°` : `Target ${one(room.target)}°`;
         target.classList.toggle('heating', heating);
         card.querySelector('.humidity').textContent = Number.isFinite(room.humidity) ? `${room.humidity}% humidity` : 'Humidity unavailable';
+        card.addEventListener('click', () => LCARS.openDetail({
+          title: room.name,
+          body: heading(room, heating),
+          fields: [{label: 'Temperature', value: `${one(room.temp)}°`}, {label: 'Target', value: `${one(room.target)}°`}, {label: 'Difference', value: `${room.temp >= room.target ? '+' : ''}${(room.temp - room.target).toFixed(1)}°`}, {label: 'Humidity', value: Number.isFinite(room.humidity) ? `${room.humidity}%` : 'Unavailable'}]
+        }));
         return card;
       }));
       if (!rooms.length) box.textContent = 'Unavailable';

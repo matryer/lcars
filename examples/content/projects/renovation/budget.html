@@ -17,6 +17,7 @@
     li button { justify-self: start; min-height: 0; padding: 0; background: none; color: var(--lcars-text); font: inherit; text-decoration: underline dotted; text-decoration-thickness: 1px; text-underline-offset: .3em; }
     .bar { grid-column: 1 / -1; height: .625rem; background: #25212b; border-radius: 0 .3rem .3rem 0; overflow: hidden; }
     .bar span { display: block; height: 100%; background: var(--lcars-peach); border-radius: inherit; }
+    .bar.lcars-scan { --lcars-scan-color: var(--lcars-text); --lcars-scan-duration: 9s; }
     .over .bar span { background: var(--lcars-critical); } .over .amount { color: var(--lcars-critical); }
   </style>
 </head>
@@ -33,13 +34,13 @@
       document.getElementById('lines').replaceChildren(...lines.map(line => {
         const over = line.spent > line.budget;
         const li = document.createElement('li'); li.className = over ? 'over' : '';
-        const name = document.createElement('button'); name.type = 'button'; name.textContent = line.name; name.setAttribute('aria-haspopup', 'dialog');
-        name.addEventListener('click', () => LCARS.openModal({
+        const name = document.createElement('button'); name.type = 'button'; name.textContent = line.name; name.id = `line-${line.name}`.replace(/[^\w-]/g, '-');
+        name.addEventListener('click', () => LCARS.openDetail({
           title: line.name, body: line.note || '',
           fields: [{label: 'Spent', value: money(line.spent)}, {label: 'Budget', value: money(line.budget)}, {label: 'State', value: over ? `Warning · ${money(line.spent - line.budget)} over` : 'Normal'}]
         }));
         const amount = document.createElement('span'); amount.className = 'amount'; amount.textContent = `${money(line.spent)} / ${money(line.budget)}`;
-        const bar = document.createElement('span'); bar.className = 'bar'; bar.setAttribute('aria-hidden', 'true');
+        const bar = document.createElement('span'); bar.className = 'bar lcars-scan'; bar.setAttribute('aria-hidden', 'true');
         const fill = document.createElement('span'); fill.style.width = `${Math.min(100, line.spent / line.budget * 100)}%`; bar.append(fill);
         li.append(name, amount, bar);
         return li;

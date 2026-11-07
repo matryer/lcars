@@ -219,6 +219,7 @@ func (s *Store) loadTab(id, parent, dir string) (Tab, []os.DirEntry, error) {
 			Title   string `json:"title"`
 			Order   *int   `json:"order"`
 			Accent  string `json:"accent"`
+			Theme   string `json:"theme"`
 		}
 		err = strictJSON(b, &cfg)
 		if err == nil && cfg.Version != 1 {
@@ -226,6 +227,9 @@ func (s *Store) loadTab(id, parent, dir string) (Tab, []os.DirEntry, error) {
 		}
 		if err == nil && cfg.Accent != "" && !palette[cfg.Accent] {
 			err = fmt.Errorf("unknown accent")
+		}
+		if err == nil && cfg.Theme != "" && !Themes[cfg.Theme] {
+			err = fmt.Errorf("unknown theme %q (classic, pastel, nebula, tidal, sand, meridian)", cfg.Theme)
 		}
 		if err == nil && len(cfg.Title) > 256 {
 			err = fmt.Errorf("title exceeds 256 characters")
@@ -241,6 +245,7 @@ func (s *Store) loadTab(id, parent, dir string) (Tab, []os.DirEntry, error) {
 			if cfg.Accent != "" {
 				t.Accent = cfg.Accent
 			}
+			t.Theme = cfg.Theme
 			return t, entries, nil
 		}
 	}

@@ -177,6 +177,83 @@ func TestRoutesAndCanonicalGuide(t *testing.T) {
 	}
 }
 
+func TestShellScriptIsBuiltFromOrderedParts(t *testing.T) {
+	_, handler, _ := fixture(t)
+	response := request(handler, "/toolkit/shell.js", nil)
+	if response.Code != http.StatusOK {
+		t.Fatalf("shell.js status: %d", response.Code)
+	}
+	for header, want := range map[string]string{"Content-Type": "text/javascript; charset=utf-8", "Cache-Control": "private, no-cache", "X-Content-Type-Options": "nosniff"} {
+		if got := response.Header().Get(header); got != want {
+			t.Errorf("%s: got %q, want %q", header, got, want)
+		}
+	}
+	body := response.Body.String()
+	if !strings.HasPrefix(body, "/* LCARS shell, bridge and capture contract v1. Built from web/toolkit/shell/*.js in filename order. */\n(() => {\n'use strict';\n") {
+		t.Fatalf("shell.js does not start with the header and wrapper: %.200q", body)
+	}
+	if !strings.HasSuffix(body, "\n})();\n") {
+		t.Fatalf("shell.js does not end with the wrapper close: %q", body[max(0, len(body)-200):])
+	}
+	parts, err := filepath.Glob("../../web/toolkit/shell/*.js")
+	if err != nil || len(parts) == 0 {
+		t.Fatalf("no shell parts: %v", err)
+	}
+	at := 0
+	for _, part := range parts { // Glob returns names sorted.
+		marker := "// --- shell/" + filepath.Base(part) + " ---\n"
+		i := strings.Index(body[at:], marker)
+		if i < 0 {
+			t.Fatalf("missing or out-of-order marker %q", marker)
+		}
+		at += i + len(marker)
+	}
+	head := httptest.NewRequest(http.MethodHead, "http://127.0.0.1:8080/toolkit/shell.js", nil)
+	headResponse := httptest.NewRecorder()
+	handler.ServeHTTP(headResponse, head)
+	if headResponse.Code != http.StatusOK || headResponse.Body.Len() != 0 {
+		t.Fatalf("HEAD shell.js: %d with %d body bytes", headResponse.Code, headResponse.Body.Len())
+	}
+}
+
+func TestShellStylesAreBuiltFromOrderedParts(t *testing.T) {
+	_, handler, _ := fixture(t)
+	response := request(handler, "/toolkit/shell.css", nil)
+	if response.Code != http.StatusOK {
+		t.Fatalf("shell.css status: %d", response.Code)
+	}
+	for header, want := range map[string]string{"Content-Type": "text/css; charset=utf-8", "X-Content-Type-Options": "nosniff"} {
+		if got := response.Header().Get(header); got != want {
+			t.Errorf("%s: got %q, want %q", header, got, want)
+		}
+	}
+	body := response.Body.String()
+	if !strings.HasPrefix(body, "/* LCARS shell styles. Built from web/toolkit/shell/*.css in filename order. */\n") {
+		t.Fatalf("shell.css does not start with its header: %.200q", body)
+	}
+	parts, err := filepath.Glob("../../web/toolkit/shell/*.css")
+	if err != nil || len(parts) == 0 {
+		t.Fatalf("no shell style parts: %v", err)
+	}
+	// Later parts win cascade ties, so every part must appear, whole and in filename order.
+	at := 0
+	for _, part := range parts { // Glob returns names sorted.
+		marker := "/* --- shell/" + filepath.Base(part) + " --- */\n"
+		i := strings.Index(body[at:], marker)
+		if i < 0 {
+			t.Fatalf("missing or out-of-order marker %q", marker)
+		}
+		at += i + len(marker)
+		source, err := os.ReadFile(part)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.HasPrefix(body[at:], string(source)) {
+			t.Fatalf("%s is not included verbatim after its marker", filepath.Base(part))
+		}
+	}
+}
+
 func TestVersionDiscovery(t *testing.T) {
 	_, handler, _ := fixture(t)
 	response := request(handler, "/api/version", nil)

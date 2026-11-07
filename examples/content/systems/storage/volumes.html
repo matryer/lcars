@@ -8,35 +8,48 @@
   <meta name="lcars:order" content="10">
   <meta name="lcars:accent" content="orange">
   <style>
+    .summary { font: 500 2rem/1.1 var(--lcars-label-font); margin: 0 0 1rem; }
     ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 1.25rem; }
     li + li { margin-top: 0; }
     li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .25rem 1rem; align-items: baseline; }
+    .name { justify-self: start; min-height: 0; padding: 0; border: 0; background: none; color: var(--lcars-text); text-decoration: underline dotted; text-decoration-thickness: 1px; text-underline-offset: .3em; cursor: pointer; }
     .name { font: 500 1.25rem/1.2 var(--lcars-label-font); letter-spacing: .03em; }
     .used { font: 500 1.5rem/1 var(--lcars-label-font); }
     .bar { grid-column: 1 / -1; height: .75rem; background: #25212b; border-radius: 0 .375rem .375rem 0; overflow: hidden; }
     .bar span { display: block; height: 100%; background: var(--lcars-blue); border-radius: inherit; }
     .high .bar span { background: var(--lcars-orange); } .high .state { color: var(--lcars-orange); }
+    .bar.lcars-scan { --lcars-scan-color: var(--lcars-text); }
     .meta { grid-column: 1 / -1; color: var(--lcars-muted); font-size: .875rem; }
   </style>
 </head>
 <body>
+  <p class="summary" id="summary">Unavailable</p>
   <ul id="volumes"></ul>
   <script>
     let clock = new Date().toISOString();
     LCARS.onState(state => { clock = state.clock; });
     LCARS.onData(({data, missing}) => {
       const volumes = !missing && Array.isArray(data?.volumes) ? data.volumes : [];
+      const normal = volumes.filter(volume => volume.usedTB / volume.sizeTB < .8).length;
+      document.getElementById('summary').textContent = volumes.length ? `${normal} of ${volumes.length} normal` : 'Unavailable';
       document.getElementById('volumes').replaceChildren(...volumes.map(volume => {
         const percent = Math.round(volume.usedTB / volume.sizeTB * 100);
         const li = document.createElement('li'); li.className = percent >= 80 ? 'high' : '';
-        li.innerHTML = '<span class="name"></span><span class="used"></span><span class="bar" aria-hidden="true"><span></span></span><span class="meta"><span class="state"></span> · <span class="space"></span> · last scrub <lcars-time label="Last scrub"></lcars-time></span>';
+        li.innerHTML = '<button type="button" class="name"></button><span class="used"></span><span class="bar lcars-scan" aria-hidden="true"><span></span></span><span class="meta"><span class="state"></span> · <span class="space"></span> · last scrub <lcars-time label="Last scrub"></lcars-time></span>';
         li.querySelector('.name').textContent = `${volume.host} · ${volume.name}`;
+        li.querySelector('.name').id = `volume-${volume.host}-${volume.name}`.replace(/[^\w-]/g, '-');
         li.querySelector('.used').textContent = `${percent}%`;
         li.querySelector('.bar span').style.width = `${percent}%`;
         li.querySelector('.state').textContent = percent >= 80 ? 'Warning' : 'Normal';
         li.querySelector('.space').textContent = `${volume.usedTB} of ${volume.sizeTB} TB`;
         // Demo fixture: ages keep the example fresh. Real producers should write RFC3339 times.
-        li.querySelector('lcars-time').setAttribute('datetime', new Date(Date.parse(clock) - volume.scrubDaysAgo * 86400000).toISOString());
+        const scrub = new Date(Date.parse(clock) - volume.scrubDaysAgo * 86400000).toISOString();
+        li.querySelector('lcars-time').setAttribute('datetime', scrub);
+        li.querySelector('.name').addEventListener('click', () => LCARS.openDetail({
+          title: `${volume.host} · ${volume.name}`,
+          body: percent >= 80 ? 'Above the 80% warning threshold. Free space or add capacity before it fills.' : 'Within normal limits.',
+          fields: [{label: 'Used', value: `${volume.usedTB} TB (${percent}%)`}, {label: 'Free', value: `${(volume.sizeTB - volume.usedTB).toFixed(1)} TB`}, {label: 'Size', value: `${volume.sizeTB} TB`}, {label: 'Last scrub', time: scrub}]
+        }));
         return li;
       }));
     });

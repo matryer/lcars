@@ -1,0 +1,38 @@
+/* panel frames, headings, expand control, slots and iframes, meta and diagnostics */
+/* Outlines are thin and always themed: the accent names orange and critical mean health, so frames map them to theme colours
+   (headings keep the accent, so a warning panel still reads as one). --frame is the softened outline colour. */
+.panel,.deco{--line:8px;--frame-tone:var(--accent);--frame:color-mix(in oklab,var(--frame-tone) 84%,#000)}
+.panel[data-accent=orange]{--frame-tone:var(--apricot)}
+.panel[data-accent=critical]{--frame-tone:var(--peach)}
+.panel{--accent:var(--lilac);position:relative;isolation:isolate;min-width:0;padding:0 0 12px 32px}
+.panel::before{content:'';position:absolute;top:0;left:0;bottom:0;right:10px;border-left:var(--line) solid var(--frame);border-top:var(--line) solid var(--frame);border-top-left-radius:24px;z-index:-1;pointer-events:none}
+.panel::after{content:'';position:absolute;top:0;right:0;width:20px;height:var(--line);background:var(--frame);border-radius:0 4px 4px 0;z-index:-1;pointer-events:none}
+.panel-heading{position:relative;padding:0 8px 0 12px;margin:-9px 24px 20px 4px;background:#000;display:table;max-width:calc(100% - 28px);color:var(--accent)}
+.panel-heading h2{margin:0;line-height:1.25;display:inline}
+.panel-expand{position:absolute;top:-6px;right:28px;min-height:0;height:20px;padding:0 12px;border:0;border-radius:10px;background:#000;color:var(--frame);font:500 13px/20px var(--label);text-transform:uppercase;letter-spacing:.06em;box-shadow:0 0 0 4px #000;opacity:.85;transition:opacity .15s,color .15s,background .15s}
+.panel-expand:hover,.panel-expand:focus-visible,.panel-expand[aria-pressed=true]{opacity:1;background:var(--frame);color:#000}
+.panel[data-size=full] .panel-expand{display:none}
+.panel-heading h2:focus{outline-offset:6px}
+.panel-body{min-width:0;position:relative}
+.frame-slot{position:relative;min-width:0;min-height:80px;height:160px;overflow:clip;overflow-clip-margin:8px;transition:height .42s cubic-bezier(.2,.7,.2,1)}
+.frame-slot.pending::before,.frame-slot.pending::after{content:'';position:absolute;left:0;height:10px;border-radius:0 5px 5px 0;background:var(--frame);opacity:.18;animation:lcars-pending 1.3s ease-in-out infinite}
+.frame-slot.pending::before{top:20px;width:42%}
+.frame-slot.pending::after{top:44px;width:64%;animation-delay:.18s}
+iframe.reveal{animation:lcars-fade .45s ease-out .18s both}
+iframe{display:block;width:100%;height:320px;border:0;background:#000}
+.panel-meta{margin-top:16px;padding-top:12px;border-top:1px solid #4a3c4a;font-size:14px;color:var(--muted);overflow-wrap:anywhere}
+.panel-time{min-height:44px;padding:0;border:0;background:none;color:var(--muted);font:inherit;text-decoration:underline dotted;text-decoration-thickness:1px;text-underline-offset:.3em}
+.panel-time:hover{color:var(--accent)}
+.panel-time.stale{color:var(--orange)}
+.panel-meta p{margin:0 0 8px}
+.source{display:inline-flex;align-items:center;min-height:44px;margin-right:16px}
+.diagnostic{border-left:4px solid var(--orange);padding:8px 12px;margin:12px 0;color:var(--apricot);overflow-wrap:anywhere;font-size:14px}
+.diagnostic.critical{border-color:var(--critical);color:var(--critical)}
+.diagnostic button{background:var(--apricot);color:#000;border:0;margin-top:8px;padding:8px 16px}
+.stale{color:var(--orange)}
+@keyframes lcars-pending{0%,100%{opacity:.1}50%{opacity:.3}}
+@media(max-width:759px){
+.panel{padding-left:24px}
+.panel-heading{font-size:24px;margin-right:8px;padding-left:8px;max-width:calc(100% - 12px)}
+.panel-meta{margin-top:12px}
+}

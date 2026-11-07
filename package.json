@@ -2,6 +2,8 @@
   "name": "lcars-shell-tests",
   "private": true,
   "scripts": {
+    "fmt": "prettier --write . --ignore-path .gitignore",
+    "fmt:check": "prettier --check . --ignore-path .gitignore",
     "test": "node --test web/tests/*.test.mjs"
   },
   "engines": {
@@ -9,6 +11,7 @@
   },
   "devDependencies": {
     "@sinonjs/fake-timers": "^15.4.0",
-    "jsdom": "^31.0.0"
+    "jsdom": "^31.0.0",
+    "prettier": "^3.9.10"
   }
 }

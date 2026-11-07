@@ -10,7 +10,8 @@
   <style>
     ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 1rem; }
     li + li { margin-top: 0; }
-    li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .25rem 1rem; align-items: baseline; }
+    li > button { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .25rem 1rem; align-items: baseline; width: 100%; padding: .25rem .5rem .25rem 0; border: 0; background: none; color: var(--lcars-text); font: inherit; text-align: left; cursor: pointer; }
+    li > button:hover { background: #1c1820; }
     .target { font: 500 1.125rem/1.2 var(--lcars-label-font); letter-spacing: .03em; }
     .value { font: 500 1.5rem/1 var(--lcars-label-font); }
     .bar { grid-column: 1 / -1; position: relative; height: .75rem; background: #25212b; border-radius: 0 .375rem .375rem 0; }
@@ -18,23 +19,31 @@
     .bar i { position: absolute; top: -.25rem; bottom: -.25rem; width: 2px; background: var(--lcars-text); }
     .note { grid-column: 1 / -1; color: var(--lcars-muted); font-size: .875rem; }
     .warning .bar span { background: var(--lcars-orange); } .warning .note { color: var(--lcars-orange); }
+    #targets { --lcars-scan-color: var(--lcars-text); }
     .key { margin: 1rem 0 0; color: var(--lcars-muted); font-size: .875rem; }
   </style>
 </head>
 <body>
-  <ul id="targets"></ul>
+  <ul id="targets" class="lcars-scan"></ul>
   <p class="key">Bar: median round trip. Tick: 95th percentile. Scale 0–100 ms.</p>
   <script>
     LCARS.onData(({data, missing}) => {
       const targets = !missing && Array.isArray(data?.targets) ? data.targets : [];
       document.getElementById('targets').replaceChildren(...targets.map(target => {
         const li = document.createElement('li'); li.className = target.state === 'Warning' ? 'warning' : '';
-        li.innerHTML = '<span class="target"></span><span class="value"></span><span class="bar" aria-hidden="true"><span></span><i></i></span><span class="note"></span>';
-        li.querySelector('.target').textContent = target.name;
-        li.querySelector('.value').textContent = `${target.p50} ms`;
-        li.querySelector('.bar span').style.width = `${Math.min(100, target.p50)}%`;
-        li.querySelector('.bar i').style.left = `${Math.min(100, target.p95)}%`;
-        li.querySelector('.note').textContent = `${target.state} · p95 ${target.p95} ms · ${target.loss}% loss`;
+        const button = document.createElement('button'); button.type = 'button'; button.id = `target-${target.name}`.replace(/[^\w-]/g, '-'); li.append(button);
+        button.addEventListener('click', () => LCARS.openDetail({
+          title: target.name,
+          body: target.state === 'Warning' ? 'Slow at the 95th percentile with some loss: occasional spikes rather than a steady slowdown.' : 'Responding normally.',
+          fields: [{label: 'State', value: target.state}, {label: 'Median', value: `${target.p50} ms`}, {label: '95th percentile', value: `${target.p95} ms`}, {label: 'Spread', value: `${target.p95 - target.p50} ms`}, {label: 'Packet loss', value: `${target.loss}%`}]
+        }));
+        button.innerHTML = '<span class="target"></span><span class="value"></span><span class="bar" aria-hidden="true"><span></span><i></i></span><span class="note"></span>';
+        const q = selector => button.querySelector(selector);
+        q('.target').textContent = target.name;
+        q('.value').textContent = `${target.p50} ms`;
+        q('.bar span').style.width = `${Math.min(100, target.p50)}%`;
+        q('.bar i').style.left = `${Math.min(100, target.p95)}%`;
+        q('.note').textContent = `${target.state} · p95 ${target.p95} ms · ${target.loss}% loss`;
         return li;
       }));
     });

@@ -1,0 +1,20 @@
+/* scanning: highlights that sweep host visualisations and chrome segments; transform and opacity only, shown only with motion on, paused while the page is hidden */
+.gauge::after,.meters::after,.bars::after,.glint::after{content:'';position:absolute;inset:0;pointer-events:none}
+.gauge::after{background:linear-gradient(transparent 45%,color-mix(in oklab,var(--tone) 35%,#fff) 49.5% 50.5%,transparent 55%);transform:translateY(-50%);animation:lcars-scan-y var(--scan-d,3s) ease-in-out var(--scan-t,0s) infinite alternate}
+@keyframes lcars-scan-y{0%{transform:translateY(-50%);opacity:0}12%,88%{opacity:.9}100%{transform:translateY(50%);opacity:0}}
+.meters::after{background:linear-gradient(90deg,transparent 44%,rgb(255 255 255/.18) 50%,transparent 56%);transform:translateX(-60%);animation:lcars-scan-x var(--scan-d,5s) cubic-bezier(.45,0,.55,1) infinite}
+@keyframes lcars-scan-x{0%{transform:translateX(-60%)}70%,100%{transform:translateX(60%)}}
+.bars::after{background:linear-gradient(transparent 47%,rgb(255 255 255/.45) 49.6% 50.4%,transparent 53%);transform:translateY(-55%);animation:lcars-scan-down var(--scan-d,4s) linear infinite}
+@keyframes lcars-scan-down{0%{transform:translateY(-55%)}75%,100%{transform:translateY(55%)}}
+.glint::after{background:linear-gradient(105deg,transparent 30%,rgb(255 255 255/.45) 50%,transparent 70%);transform:translateX(-101%);animation:lcars-glint var(--glint-d,12s) ease-in-out var(--glint-t,0s) infinite}
+@keyframes lcars-glint{0%{transform:translateX(-101%)}8%,100%{transform:translateX(101%)}}
+.dial-sweep{transform-origin:100px 100px;animation:lcars-spin var(--sweep-d,6s) linear infinite}
+.dial-spin{transform-origin:100px 100px;animation:lcars-spin var(--spin-d,80s) linear infinite}
+@keyframes lcars-spin{to{transform:rotate(360deg)}}
+/* readout cursor: the shared decoration timer steps .scan from row to row */
+.readout .row.scan .number{background:var(--tone);color:#000}
+.readout .row.scan .tag{filter:brightness(1.35)}
+html[data-motion=off] :is(.gauge,.meters,.bars,.glint)::after,html[data-motion=off] .dial-sweep{display:none}
+html[data-motion=off] .readout .row.scan .number{background:none;color:var(--tone)}
+html[data-motion=off] .readout .row.scan .tag{filter:none}
+html[data-page-hidden] :is(.gauge,.meters,.bars,.glint)::after,html[data-page-hidden] :is(.dial-sweep,.dial-spin,.lights i){animation-play-state:paused}
