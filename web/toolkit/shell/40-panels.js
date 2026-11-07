@@ -89,7 +89,7 @@ function apply(next) {
   applyTheme(topTab);
   if(decorSeed!==topId){decorSeed=topId;chrome(topId);}
   typeText($('section-title'),topTab?.title || (section?'Section unavailable':'Your canvas is ready'));
-  document.title=[current?.parent?current.title:'',topTab?.title || 'Canvas','LCARS'].filter(Boolean).join(' · ');
+  document.title=[topTab?.title || 'Canvas',current?.parent?current.title:''].filter(Boolean).join(' › ')+' - matryer/lcars';
   $('global-diagnostics').replaceChildren();
   for(const value of [...(next.diagnostics || []),...(current?.parent?topTab?.diagnostics || []:[]),...(current?.diagnostics || [])])$('global-diagnostics').append(node('p',diagnosticText(value),'diagnostic'));
   // Every pooled section stays in sync; sections that no longer exist are dropped.

@@ -4,12 +4,15 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"html"
 	"io/fs"
 	"net"
 	"net/http"
+	"net/url"
 	"path"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/matryer/lcars/internal/buildinfo"
 	"github.com/matryer/lcars/internal/content"
@@ -132,9 +135,39 @@ func allowedHost(host string, allowed []string) bool {
 	return host == "localhost" || net.ParseIP(host) != nil || slices.Contains(allowed, host)
 }
 
+// shellPage is shell.html with the build's version written into the footer.
+var shellPage = sync.OnceValue(func() []byte {
+	b, err := fs.ReadFile(web.Files, "shell.html")
+	if err != nil {
+		panic(err)
+	}
+	info := buildinfo.Current()
+	label, link := "v"+info.Version, "https://github.com/matryer/lcars"
+	title := "LCARS " + label + " · authoring contract " + info.ContractVersion
+	if info.Commit != "" {
+		short := info.Commit
+		if len(short) > 7 {
+			short = short[:7]
+		}
+		link += "/commit/" + url.PathEscape(info.Commit)
+		title += " · commit " + short
+		if info.Modified {
+			title += " (modified)"
+		}
+	}
+	if info.BuiltAt != "" {
+		title += " · built " + info.BuiltAt
+	}
+	return []byte(strings.NewReplacer(
+		"__LCARS_VERSION_URL__", html.EscapeString(link),
+		"__LCARS_VERSION_TITLE__", html.EscapeString(title),
+		"__LCARS_VERSION__", html.EscapeString(label),
+	).Replace(string(b)))
+})
+
 func shell(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; frame-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'")
-	serveFile(w, r, web.Files, "shell.html", "text/html; charset=utf-8")
+	serveBytes(w, r, shellPage(), "text/html; charset=utf-8")
 }
 func serveFile(w http.ResponseWriter, r *http.Request, files fs.FS, name, mime string) {
 	b, e := fs.ReadFile(files, name)

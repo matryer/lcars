@@ -238,7 +238,7 @@ test('navigation opens a first subsection, encodes paths, and handles browser hi
   assert.equal(parked.hasAttribute('inert'), true);
   assert.equal(parked.getAttribute('aria-hidden'), 'true');
   assert.equal(s.all('[id="panels"]').length, 1);
-  assert.equal(s.window.document.title, 'Next steps · Work · LCARS');
+  assert.equal(s.window.document.title, 'Work › Next steps - matryer/lcars');
   s.click(s.$('#subnav [data-tab="work/later"]'));
   assert.equal(s.window.location.pathname, '/s/work/later');
   assert.equal(s.$('#panels .panel').dataset.panelId, 'later');

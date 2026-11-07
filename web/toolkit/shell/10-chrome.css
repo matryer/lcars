@@ -7,7 +7,7 @@
 .page-heading:has(.page-time:not(:empty)){padding-right:6px}
 .page-time,.bar-time{flex:none;height:24px;padding:0 10px;background:var(--tone,var(--blue));color:#000;font:500 17px/24px var(--label);letter-spacing:.06em;white-space:nowrap}
 .page-time{margin-top:8px}
-.page-time:empty,.bar-time:empty{display:none}
+.page-time:empty,.bar-time:empty{display:none}.bar-version{flex:none;height:24px;padding:0 10px;background:var(--peach);color:#000;font:500 17px/24px var(--label);letter-spacing:.06em;white-space:nowrap;text-decoration:none}.bar-version:hover,.bar-version:focus-visible{background:var(--apricot)}
 .masthead-segments+.masthead-label{margin-left:0}
 .masthead-label{margin-left:auto;background:#000;padding:0 16px;font:500 20px/1.2 var(--label);color:var(--apricot);text-transform:uppercase;text-decoration:none;letter-spacing:.02em}
 a.masthead-label:hover{color:var(--text)}
