@@ -16,6 +16,7 @@
 !/skills/
 !/tools/
 !/examples/
+!/docs/
 
 # Never commit secrets, local environment, or logs, even in allowed folders.
 .env
