@@ -19,7 +19,7 @@ description = "Bump patch by default; --bump minor or major selects another incr
 run = "go run ./tools/release --version-only"
 
 [tasks.release]
-description = "Bump patch, check and package; --bump none keeps the current version"
+description = "Bump patch, check and package CLI plus native desktop; --desktop-targets none skips desktop"
 run = "go run ./tools/release"
 
 [tasks.desktop]

@@ -71,6 +71,9 @@ mise run desktop:test
 Root tests cover the desktop handler, initial navigation, polling, file updates,
 host checks, and component isolation. Desktop tests check argument and directory
 handling before the native window starts. CI builds and tests the desktop module
-on Linux, macOS, and Windows with their native libraries. The ordinary CLI build
-and release command continue to package the CLI; desktop installers, app bundles,
+on Linux, macOS, and Windows with their native libraries. The ordinary CLI build stays independent. `mise run release` packages the CLI
+and a desktop archive for the native host, with shared version/build metadata
+and checksums. Use `--desktop-targets none` for a CLI-only release, or select the
+native host and/or Windows targets explicitly. See [local releases](reference.md#versions-and-local-releases)
+for platform/toolchain requirements and examples. Desktop installers, app bundles,
 code signing, and auto-updates are not provided yet.

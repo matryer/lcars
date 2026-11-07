@@ -137,15 +137,20 @@ mise run fmt                           # gofmt and Prettier across all source
 mise run test                          # JS tests, Go race tests and vet; browser tests if installed
 mise run bump                          # bump patch only (0.1.0 → 0.1.1)
 mise run bump --bump minor              # bump minor and reset patch
-mise run release                       # bump patch, test and package
+mise run release                       # bump patch; package CLI targets and native desktop
 mise run release --bump none           # test and package the current version
 mise run release --bump major          # bump major and reset minor/patch
-mise run release --targets linux/amd64 # one platform for a quick local release
+mise run release --targets linux/amd64 # Linux CLI plus this machine's desktop
+mise run release --desktop-targets none # CLI-only release, no webview libraries needed
 ```
 
-The equivalent release command is `go run ./tools/release` (patch bump by default); `--bump none` packages the current version, and `--version-only` only bumps VERSION. Default release targets are Linux and macOS on amd64/arm64 and Windows on amd64. Packaging needs Go and Git; Chrome/Chromium is only needed for browser checks, which skip when unavailable.
+The equivalent release command is `go run ./tools/release` (patch bump by default); `--bump none` packages the current version, and `--version-only` only bumps VERSION. Default CLI release targets are Linux and macOS on amd64/arm64 and Windows on amd64. The release also builds the desktop app for the current machine's OS and architecture by default. `--targets` selects CLI platforms; `--desktop-targets` selects desktop platforms independently, or `none` for a CLI-only release. Desktop targets may include the native host and Windows amd64/arm64; Linux and macOS desktop binaries must be built on their matching native machine. For example, on Linux amd64, `--desktop-targets linux/amd64,windows/amd64` packages both desktop variants. Cross-target Windows builds still run desktop tests on the host.
 
-A release runs race tests and vet before building static binaries. Each `dist/vVERSION/` contains platform archives, `SHA256SUMS`, and `release.json` with the version, source commit, dirty state and build time. Every archive includes the executable, README, font licence, and complete portable authoring skill. Builds embed the version, commit, and build time. Existing release directories are never overwritten; a failed build restores VERSION and leaves no completed release folder.
+Packaging needs Go and Git, plus the [native Wails platform dependencies](desktop.md#build-and-run) when desktop builds are enabled. Chrome/Chromium is only needed for browser checks, which skip when unavailable.
+
+A release runs root race tests and vet, then desktop race tests and vet when desktop packaging is enabled, before changing VERSION. CLI binaries remain static; Linux/macOS desktop builds use the native toolchain, while Windows desktop builds use WebView2 without cgo and omit the console window. Each `dist/vVERSION/` contains `lcars_VERSION_OS_ARCH` CLI archives, `lcars-desktop_VERSION_OS_ARCH` desktop archives, combined `SHA256SUMS`, and `release.json` with the version, source commit, dirty state, build time, CLI `targets` and `desktopTargets`. Windows archives are ZIP; others are tar.gz. Every archive includes the executable, README, MIT license, desktop/reference guides, font licence, and complete portable authoring skill. Both binaries embed the same version, commit, and build time. Existing release directories are never overwritten; a failed build of either app restores VERSION and leaves no completed release folder.
+
+Desktop archives contain standalone executables, not installers or signed macOS app bundles. Linux desktop users need GTK4 and WebKitGTK 6.0 runtime libraries; Windows users need WebView2. See the [desktop guide](desktop.md).
 
 Review and commit the finished source and VERSION, then run `mise run release --bump none` from that clean commit for publishable artifacts. Commit the bump first with `mise run bump` if you want the release's source commit to include it. The tool can build a dirty tree for local use; inspect `lcars version --json` before publishing. Tag `vVERSION` and upload the archives/checksums through your normal release process when ready. These commands do not commit, tag, push, or publish for you.
 

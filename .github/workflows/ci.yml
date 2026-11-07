@@ -68,3 +68,9 @@ jobs:
       - run: go test -race ./...
       - run: go vet ./...
       - run: go build -o lcars-desktop .
+      - name: Package native CLI and desktop release
+        working-directory: .
+        shell: bash
+        run: |
+          target="$(go env GOOS)/$(go env GOARCH)"
+          go run ./tools/release --bump none --targets "$target" --desktop-targets "$target"
