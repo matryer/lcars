@@ -13,6 +13,19 @@ mise run build
 
 The server listens on port **8080**, on loopback by default. The example includes an overview, home dashboard, week planner, systems, projects, and notes. All example data is fictional.
 
+## Desktop app
+
+Open the same canvas in a native [Wails](https://v3.wails.io/) desktop window:
+
+```sh
+mise run desktop
+./desktop/lcars-desktop --data ./examples/content
+```
+
+The desktop build requires your platform's native webview libraries. See the
+[desktop guide](docs/desktop.md) for setup, default content locations, and Windows
+build instructions.
+
 ## Examples
 
 ### At a glance

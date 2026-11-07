@@ -23,6 +23,16 @@ import (
 // New serves store. Requests must name localhost, an IP address, or one of
 // allowedHosts, which stops DNS-rebinding pages reading private content.
 func New(store *content.Store, allowedHosts ...string) http.Handler {
+	return newHandler(store, false, allowedHosts...)
+}
+
+// NewDesktop serves the same canvas through Wails' in-process asset server.
+// Native webviews use polling because response streaming is not portable.
+func NewDesktop(store *content.Store) http.Handler {
+	return newHandler(store, true, "wails.localhost")
+}
+
+func newHandler(store *content.Store, desktop bool, allowedHosts ...string) http.Handler {
 	for i, h := range allowedHosts {
 		allowedHosts[i] = strings.ToLower(h)
 	}
@@ -46,7 +56,20 @@ func New(store *content.Store, allowedHosts ...string) http.Handler {
 		case p == "/healthz":
 			w.Header().Set("Content-Type", "text/plain")
 			fmt.Fprintln(w, "ok")
+		case p == "/desktop.js" && desktop:
+			// Run before shell.js so its initial section and polling mode are correct.
+			initial := "/"
+			if tabs := store.State().Tabs; len(tabs) > 0 {
+				initial = "/s/" + tabs[0].ID
+			}
+			encoded, _ := json.Marshal(initial)
+			js := "window.EventSource=undefined;if(location.pathname==='/')history.replaceState(null,''," + string(encoded) + ");"
+			serveBytes(w, r, []byte(js), "text/javascript; charset=utf-8")
 		case p == "/api/events":
+			if desktop {
+				http.Error(w, "Desktop uses state polling", http.StatusNotImplemented)
+				return
+			}
 			events(w, r, store)
 		case p == "/api/state":
 			st := store.State()
@@ -65,18 +88,18 @@ func New(store *content.Store, allowedHosts ...string) http.Handler {
 			serveFile(w, r, authoring.Files, "references/guide.md", "text/markdown; charset=utf-8")
 		case p == "/":
 			st := store.State()
-			if len(st.Tabs) > 0 {
+			if len(st.Tabs) > 0 && !desktop {
 				http.Redirect(w, r, "/s/"+st.Tabs[0].ID, 302)
 				return
 			}
-			shell(w, r)
+			shell(w, r, desktop)
 		case strings.HasPrefix(p, "/s/"):
 			// Sections and one level of sub-sections: /s/systems, /s/systems/network.
 			if !content.ValidTabID(strings.TrimPrefix(p, "/s/")) {
 				http.NotFound(w, r)
 				return
 			}
-			shell(w, r)
+			shell(w, r, desktop)
 		case strings.HasPrefix(p, "/component/"):
 			parts := strings.Split(strings.TrimPrefix(p, "/component/"), "/")
 			if len(parts) < 3 || len(parts[0]) != 64 {
@@ -165,9 +188,15 @@ var shellPage = sync.OnceValue(func() []byte {
 	).Replace(string(b)))
 })
 
-func shell(w http.ResponseWriter, r *http.Request) {
+func shell(w http.ResponseWriter, r *http.Request, desktop bool) {
 	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; frame-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'")
-	serveBytes(w, r, shellPage(), "text/html; charset=utf-8")
+	page := shellPage()
+	if desktop {
+		// Only the trusted shell loads the native runtime; component HTML keeps
+		// its sandbox and never receives a native bridge.
+		page = []byte(strings.Replace(string(page), "<head>", `<head><script type="module" src="/wails/runtime.js"></script><script src="/desktop.js"></script>`, 1))
+	}
+	serveBytes(w, r, page, "text/html; charset=utf-8")
 }
 func serveFile(w http.ResponseWriter, r *http.Request, files fs.FS, name, mime string) {
 	b, e := fs.ReadFile(files, name)

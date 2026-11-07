@@ -17,6 +17,9 @@
 !/tools/
 !/examples/
 !/docs/
+!/desktop/
+/desktop/lcars-desktop
+/desktop/lcars-desktop.exe
 
 # Never commit secrets, local environment, or logs, even in allowed folders.
 .env
