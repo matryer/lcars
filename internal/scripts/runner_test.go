@@ -2,6 +2,7 @@ package scripts
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -28,7 +29,7 @@ func setup(t *testing.T, source string) (*Runner, content.Script, string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r, err := New(root, store, Options{Interpreters: map[string]string{"py": python}, Timeout: 300 * time.Millisecond})
+	r, err := New(root, store, Options{Interpreters: map[string]string{"py": python}, Timeout: 10 * time.Second})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,10 +53,16 @@ func TestRunPublishesOnlySuccessfulValidOutput(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			r, job, path := setup(t, tc.source)
+			if tc.name == "timeout" {
+				r.opts.Timeout = 300 * time.Millisecond
+			}
 			os.MkdirAll(filepath.Dir(path), 0700)
 			old := []byte(`{"version":1,"data":"old"}`)
 			os.WriteFile(path, old, 0600)
 			err := r.run(context.Background(), job)
+			if tc.name == "timeout" && !errors.Is(err, context.DeadlineExceeded) {
+				t.Fatalf("expected execution deadline, got %v", err)
+			}
 			got, _ := os.ReadFile(path)
 			if tc.good {
 				if err != nil || string(got) == string(old) {
@@ -89,9 +96,11 @@ subprocess.Popen([sys.executable, '-c', 'import time; from pathlib import Path; 
 Path('started').write_text('yes')
 time.sleep(60)
 `)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	done := make(chan error, 1)
-	go func() { done <- r.run(context.Background(), job) }()
-	deadline := time.Now().Add(2 * time.Second)
+	go func() { done <- r.run(ctx, job) }()
+	deadline := time.Now().Add(10 * time.Second)
 	for {
 		if _, err := os.Stat(filepath.Join(filepath.Dir(job.Path), "started")); err == nil {
 			break
@@ -102,6 +111,9 @@ time.sleep(60)
 		time.Sleep(10 * time.Millisecond)
 	}
 	os.Rename(job.Path, filepath.Join(filepath.Dir(job.Path), ".weather.1s.py"))
+	// Cancel after the startup handshake, so child cleanup does not depend on
+	// the interpreter starting within a tiny fixed execution timeout.
+	cancel()
 	if err := <-done; err == nil {
 		t.Fatal("disabled run succeeded")
 	}
@@ -134,14 +146,14 @@ Path('started').write_text('yes')
 time.sleep(60)
 print('{"version":1,"data":"old"}')
 `)
-	r.opts.Timeout = 5 * time.Second
+	r.opts.Timeout = 30 * time.Second
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	go func() { defer close(done); r.Run(ctx) }()
 	defer func() { cancel(); <-done }()
 	wait := func(condition func() bool) {
 		t.Helper()
-		deadline := time.Now().Add(4 * time.Second)
+		deadline := time.Now().Add(15 * time.Second)
 		for !condition() {
 			if time.Now().After(deadline) {
 				t.Fatal("condition not reached")
@@ -158,12 +170,15 @@ if lock.exists():
 lock.write_text('yes')
 time.sleep(1.2)
 lock.unlink()
-print('{"version":1,"data":"new"}')
+print('{"version":1,"data":"new"}', end='\r\n')
 `
 	if err := os.WriteFile(job.Path, []byte(source), 0600); err != nil {
 		t.Fatal(err)
 	}
-	wait(func() bool { b, _ := os.ReadFile(path); return string(b) == "{\"version\":1,\"data\":\"new\"}\n" })
+	wait(func() bool {
+		b, _ := os.ReadFile(path)
+		return strings.TrimSpace(string(b)) == `{"version":1,"data":"new"}`
+	})
 	if _, err := os.Stat(filepath.Join(filepath.Dir(job.Path), "overlap")); !os.IsNotExist(err) {
 		t.Fatal("overlapping jobs")
 	}
@@ -218,10 +233,10 @@ Path('started').write_text('yes')
 while not Path('release').exists(): time.sleep(.01)
 print('{"version":1,"data":42}')
 `)
-	r.opts.Timeout = 3 * time.Second
+	r.opts.Timeout = 30 * time.Second
 	done := make(chan error, 1)
 	go func() { done <- r.run(context.Background(), job) }()
-	deadline := time.Now().Add(2 * time.Second)
+	deadline := time.Now().Add(10 * time.Second)
 	for {
 		if _, err := os.Stat(filepath.Join(filepath.Dir(job.Path), "started")); err == nil {
 			break

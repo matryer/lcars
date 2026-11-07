@@ -8,7 +8,7 @@ run = "go build -o lcars ./cmd/lcars"
 
 [tasks.fmt]
 description = "Format all Go and web source, examples and documentation"
-run = ["npm ci --ignore-scripts", "gofmt -w cmd internal skills tools web", "npm run fmt"]
+run = ["npm ci --ignore-scripts", "gofmt -w cmd desktop internal skills tools web", "npm run fmt"]
 
 [tasks.test]
 description = "Run JavaScript tests, Go race tests and vet"
@@ -19,5 +19,20 @@ description = "Bump patch by default; --bump minor or major selects another incr
 run = "go run ./tools/release --version-only"
 
 [tasks.release]
-description = "Bump patch, check and package; --bump none keeps the current version"
+description = "Bump patch, check and package CLI plus native desktop; --desktop-targets none skips desktop"
 run = "go run ./tools/release"
+
+[tasks.desktop]
+description = "Build the Wails desktop app (requires native platform libraries)"
+dir = "desktop"
+run = "go build -o lcars-desktop ."
+
+[tasks."desktop:run"]
+description = "Open the Wails desktop app with the example canvas"
+dir = "desktop"
+run = "go run . --data ../examples/content"
+
+[tasks."desktop:test"]
+description = "Test and vet the desktop app (requires native platform libraries)"
+dir = "desktop"
+run = ["go test -race ./...", "go vet ./..."]
