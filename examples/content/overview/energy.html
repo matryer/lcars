@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Household energy · demo</title>
+  <meta name="lcars:size" content="wide">
+  <meta name="lcars:order" content="20">
+  <meta name="lcars:accent" content="blue">
+  <style>
+    .energy { display: grid; gap: 1.5rem; }
+    p, h2 { margin: 0; }
+    .label { color: var(--lcars-muted, #b8adb7); }
+    .reading { font: 500 3.25rem/1.2 var(--lcars-label-font, sans-serif); color: var(--lcars-blue, #9999ff); font-variant-numeric: tabular-nums; }
+    .flows { display: grid; gap: 1rem; }
+    .flow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem; align-items: baseline; }
+    .flow strong { font-variant-numeric: tabular-nums; }
+    .bar { grid-column: 1 / -1; height: .75rem; background: #25212b; border-radius: 0 .75rem .75rem 0; }
+    .bar span { display: block; height: 100%; width: 0; background: var(--lcars-lilac, #cc99cc); border-radius: inherit; }
+    #solar-bar { background: var(--lcars-apricot, #ffcc99); }
+    details { border-top: 2px solid var(--lcars-lilac, #cc99cc); padding-top: .5rem; }
+    summary { cursor: pointer; min-height: 44px; padding: .5rem 0; }
+    @media (min-width: 540px) { .energy { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } details, .demo { grid-column: 1 / -1; } }
+  </style>
+</head>
+<body>
+  <section class="energy" aria-label="Illustrative household energy readings">
+    <div><p class="label">Current demand</p><output class="reading" id="demand">Unavailable</output><p id="status">No reading</p></div>
+    <div class="flows" aria-label="Energy sources">
+      <div class="flow"><span>Solar generation</span><strong id="solar">Unavailable</strong><div class="bar" aria-hidden="true"><span id="solar-bar"></span></div></div>
+      <div class="flow"><span>Grid import</span><strong id="grid">Unavailable</strong><div class="bar" aria-hidden="true"><span id="grid-bar"></span></div></div>
+    </div>
+    <details><summary>About these readings</summary><p>Demo values only. Bars compare each source with a 2,000 W reference. Keep this disclosure open while updating the data file: a data-only publication preserves this interaction state.</p></details>
+    <p class="label demo">Illustrative fixture · no connected household account</p>
+  </section>
+  <script>
+    const format = value => Number.isFinite(value) ? `${new Intl.NumberFormat().format(value)} W` : 'Unavailable';
+    LCARS.onData(({data, missing}) => {
+      for (const name of ['demand', 'solar', 'grid']) {
+        const value = missing ? null : data?.[name];
+        document.getElementById(name).textContent = format(value);
+        const bar = document.getElementById(`${name}-bar`);
+        if (bar) bar.style.width = `${Number.isFinite(value) ? Math.max(0, Math.min(100, value / 2000 * 100)) : 0}%`;
+      }
+      document.getElementById('status').textContent = !missing && Number.isFinite(data?.demand) ? 'Normal · demo reading' : 'Data unavailable';
+    });
+  </script>
+</body>
+</html>

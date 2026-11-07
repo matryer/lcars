@@ -1,0 +1,29 @@
+# Ignore everything at the top level; allow project files explicitly.
+/*
+!/.gitignore
+!/README.md
+!/PLAN.md
+!/LICENSE
+!/go.mod
+!/go.sum
+!/mise.toml
+!/cmd/
+!/internal/
+!/web/
+!/skills/
+!/tools/
+!/examples/
+
+# Never commit secrets, local environment, or logs, even in allowed folders.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials*.json
+*.log
+
+# Build output inside allowed folders.
+/cmd/lcars/lcars
