@@ -1,10 +1,6 @@
-# LCARS
-
-**Your files. A starship interface.**
+![LCARS — Your files. A starship interface.](examples/screenshots/banner.png)
 
 A personal canvas inspired by _Star Trek: The Next Generation_. Write Markdown, text, or HTML; LCARS turns it into a live dashboard with navigation, panel frames, and that familiar LCARS look. One Go binary, with no Node runtime needed to serve it.
-
-![LCARS personal dashboard with today's agenda, alerts, a briefing, and household energy readings](examples/screenshots/overview.png)
 
 ## Try it
 
@@ -18,6 +14,12 @@ mise run build
 The server listens on port **8080**, on loopback by default. The example includes an overview, home dashboard, week planner, systems, projects, and notes. All example data is fictional.
 
 ## Examples
+
+### At a glance
+
+Your agenda, alerts, briefing, and household energy in one view.
+
+![LCARS personal dashboard with today's agenda, alerts, a briefing, and household energy readings](examples/screenshots/overview.png)
 
 ### Plan your week
 
